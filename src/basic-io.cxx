@@ -96,7 +96,7 @@ int main(int argc, char** argv)
   // You can now get the data by StringPiece or the original location and
   // convert it into the tensor (in this particular example it would be Scalar).
   tensorflow::Tensor result(tensorflow::DT_STRING, tensorflow::TensorShape());
-  result.scalar<std::string>()() = sp.ToString();
+  result.scalar<tensorflow::tstring>()() = static_cast<tensorflow::tstring>(sp);
 
   // As should be clear from this example one could easily use the
   // I/O api that are not necessarily part of tensorflow.
