@@ -2,6 +2,7 @@
 #include <tensorflow/cc/ops/standard_ops.h>
 #include <tensorflow/core/framework/tensor.h>
 #include <iostream>
+#include <fstream>
 
 // Basic math operations using tensorflow.
 
@@ -56,18 +57,18 @@ int main(int argc, char** argv)
     // Define the add operation that takes the placeholders a and b as inputs.
     auto c = Add(scope, a, b);
 
-    // We now specify the values for our placeholders note that the way Run
-    // method is called. It is quite different from previous example.
+    // We now specify the values for our placeholders. Note the way that the
+    // Run method is called; it is quite different from the previous example.
     //
-    // Here we are using this overload of Run method
-    // Run(const FeedType& inputs, const std::vector<Output>& fetch_outputs,
+    // Here we are using this overload of Run method:
+    // Run(FeedType const& inputs, std::vector<Output> const& fetch_outputs,
     //        std::vector<Tensor>* outputs) const;
     //
-    // which takes FeedType (alias of std::unordered_map<Output,
-    // Input::Initializer, OutputHash> as the first argument.
+    // Which takes FeedType (alias of std::unordered_map<Output,
+    // Input::Initializer, OutputHash>) as the first argument.
     //
     // Note - In std::unordered_map OutputHash is optional So we just need to
-    // supply a map whose key of type "Output" and the value that respect
+    // supply a map whose key has type "Output" and value that respects
     // Initializer.
     //
     // {a,2} & {b,3} would satisfiy this requirement since type 'a' & 'b'
@@ -75,12 +76,23 @@ int main(int argc, char** argv)
 
     std::vector<Tensor> outputs;
     auto status = session.Run({{{a, 2}, {b, 3}}}, {c}, &outputs);
-
     TF_CHECK_OK(status);
 
     // We know that it will be scalar.
     // We can also get the underlying data by calling flat.
     std::cout << "Underlying Scalar value -> " << outputs[0].flat<int>() << std::endl;
+
+    // Create a GraphDef object to hold the graph.
+    GraphDef graph_def;
+    // Use the scope to serialize the graph.
+    Status s = scope.ToGraphDef(&graph_def);
+
+    // Write the GraphDef to a file.
+    std::ofstream file("exported_graph.pb", std::ios::out | std::ios::binary);
+    if (!graph_def.SerializeToOstream(&file))
+      std::cerr << "Failed to write graph to exported_graph.pb." << std::endl;
+    else
+      std::cout << "Output written to exported_graph.pb; run: `python tb.py` to create logs/ and then `tensorboard --logdir=logs` to view.\n";
   }
 
   {
@@ -105,10 +117,8 @@ int main(int argc, char** argv)
 
     std::vector<Tensor> outputs;
 
-    // In this Run we are not specifying 'a'
-    // so its default value i.e. 8 will be used.
+    // In this Run we are not specifying 'a' so its default value i.e. 8 will be used.
     auto status = session.Run({{{b, 3}}}, {c}, &outputs);
-
     TF_CHECK_OK(status);
 
     std::cout
@@ -117,7 +127,6 @@ int main(int argc, char** argv)
 
     // Here we do specify a value for placeholder 'a' i.e. 9.
     status = session.Run({{{a, 9}, {b, 3}}}, {c}, &outputs);
-
     TF_CHECK_OK(status);
 
     std::cout << "Underlying Scalar value (after supplying new value [9]) -> "

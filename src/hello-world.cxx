@@ -2,8 +2,6 @@
 #include <tensorflow/cc/ops/standard_ops.h>
 #include <tensorflow/core/framework/tensor.h>
 
-__asm__(".symver omp_in_parallel,omp_in_parallel@OMP_1.0");
-
 // Simple hello world using TensorFlow.
 
 // The sample demonstrates how to
@@ -38,11 +36,14 @@ int main(int argc, char **argv)
 
   // Run.
   std::vector<Tensor> outputs;
-  TF_CHECK_OK(session.Run({joinOp}, &outputs));
+  auto status = session.Run({joinOp}, &outputs);
+  TF_CHECK_OK(status);
 
   // See our output using DebugString that tells more information about the tensor.
-  std::cout << "DebugString -> " << outputs[0].DebugString() << std::endl;
+  for (Tensor const& tensor : outputs)
+    std::cout << "DebugString -> " << tensor.DebugString() << std::endl;
 
   // We can also get the underlying data by calling flat.
-  std::cout << "Underlying Scalar value -> " << outputs[0].flat<tstring>() << std::endl;
+  for (Tensor const& tensor : outputs)
+    std::cout << "Underlying Scalar value -> " << tensor.flat<tstring>() << std::endl;
 }
