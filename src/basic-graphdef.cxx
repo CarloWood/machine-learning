@@ -2,6 +2,7 @@
 #include <tensorflow/core/framework/tensor.h>
 #include <tensorflow/core/public/session.h>
 #include <iostream>
+#include <cassert>
 
 // So far in other examples we have executed the session using the scope.
 //
@@ -40,24 +41,22 @@ int main(int argc, char** argv)
 
     // Essentially we are are getting the default graph
     // that gets created by the framework for the root scope.
-    GraphDef graph;
-    TF_CHECK_OK(scope.ToGraphDef(&graph));
+    GraphDef graph_def;
+    TF_CHECK_OK(scope.ToGraphDef(&graph_def));
 
     // So far in other examples we have used ClientSession
     // here is another way to create the session object.
     //
-    // While ClientSession is used to execute graph created with in
-    // the C++ code, it is desirable (most of the time) to load the
+    // While ClientSession is used to execute a graph created within
+    // the C++ code, it is desirable (most of the time) to load a
     // serialized graph.
     //
-    // Note that in this example we are still creating the grpah in C++.
+    // Note that in this example we are still creating the graph in C++.
     // In other words not loading from a file.
     std::unique_ptr<tensorflow::Session> session(tensorflow::NewSession(session_options));
 
     // We are binding the session to this graph.
-    TF_CHECK_OK(session->Create(graph));
-
-    std::vector<Tensor> outputs;
+    TF_CHECK_OK(session->Create(graph_def));
 
     // This is where you will see differences between ClientSession & Session
     // more clearly.
@@ -74,9 +73,11 @@ int main(int argc, char** argv)
     // The second argument is the names of the output nodes that you want to
     // extract.
 
+    std::vector<Tensor> outputs;
     TF_CHECK_OK(session->Run({}, {"Sub"}, {}, &outputs));
 
     std::cout << "Size of outputs -> " << outputs.size() << std::endl;
+    assert(outputs.size() == 1);
     std::cout << "DebugString Sub -> " << outputs[0].DebugString() << std::endl;
 
     //
@@ -86,10 +87,10 @@ int main(int argc, char** argv)
     // that you want.
 
     outputs.clear();
-
     TF_CHECK_OK(session->Run({}, {"Add", "Sub"}, {}, &outputs));
 
     std::cout << "Size of outputs -> " << outputs.size() << std::endl;
+    assert(outputs.size() == 2);
     std::cout << "DebugString Add -> " << outputs[0].DebugString() << std::endl;
     std::cout << "DebugString Sub -> " << outputs[1].DebugString() << std::endl;
   }
@@ -106,19 +107,17 @@ int main(int argc, char** argv)
 
     auto add = Add(scope.WithOpName("Add"), a, b);
 
-    GraphDef graph;
-    TF_CHECK_OK(scope.ToGraphDef(&graph));
+    GraphDef graph_def;
+    TF_CHECK_OK(scope.ToGraphDef(&graph_def));
 
     std::unique_ptr<tensorflow::Session> session(tensorflow::NewSession(session_options));
 
     // We are binding the session to this graph.
-    TF_CHECK_OK(session->Create(graph));
-
-    std::vector<Tensor> outputs;
+    TF_CHECK_OK(session->Create(graph_def));
 
     // Create two tensors.
-    auto inputA = Tensor(DT_INT32, TensorShape({}));
-    auto inputB = Tensor(DT_INT32, TensorShape({}));
+    Tensor inputA{DT_INT32, TensorShape{}};
+    Tensor inputB{DT_INT32, TensorShape{}};
 
     // Set their values.
     inputA.scalar<int>()() = 10;
@@ -132,9 +131,11 @@ int main(int argc, char** argv)
       {"B", inputB},
     };
 
+    std::vector<Tensor> outputs;
     TF_CHECK_OK(session->Run(inputs, {"Add"}, {}, &outputs));
 
     std::cout << "Size of outputs -> " << outputs.size() << std::endl;
+    assert(outputs.size() == 1);
     std::cout << "DebugString Add -> " << outputs[0].DebugString() << std::endl;
   }
 }
