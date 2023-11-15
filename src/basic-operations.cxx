@@ -21,10 +21,14 @@ int main(int argc, char** argv)
   // We are creating various local scopes so that a new
   // session object is created for all the examples.
 
+  // Configure session options.
+  tensorflow::SessionOptions session_options;
+  session_options.config.set_inter_op_parallelism_threads(2);
+
   {
     // An example of doing addition on constants.
 
-    ClientSession session(scope);
+    ClientSession session(scope, session_options);
 
     auto a = Const(scope, 2);
     auto b = Const(scope, 3);
@@ -43,7 +47,7 @@ int main(int argc, char** argv)
     // An example of how to supply a variable (i.e. not a constant)
     // whose value is supplied at the time when we run the session.
 
-    ClientSession session(scope);
+    ClientSession session(scope, session_options);
 
     // We will use Placeholder as the type for our variables.
     auto a = Placeholder(scope, DT_INT32);
@@ -51,8 +55,6 @@ int main(int argc, char** argv)
 
     // Define the add operation that takes the placeholders a and b as inputs.
     auto c = Add(scope, a, b);
-
-    std::vector<Tensor> outputs;
 
     // We now specify the values for our placeholders note that the way Run
     // method is called. It is quite different from previous example.
@@ -71,6 +73,7 @@ int main(int argc, char** argv)
     // {a,2} & {b,3} would satisfiy this requirement since type 'a' & 'b'
     // is Output.
 
+    std::vector<Tensor> outputs;
     auto status = session.Run({{{a, 2}, {b, 3}}}, {c}, &outputs);
 
     TF_CHECK_OK(status);
@@ -88,7 +91,7 @@ int main(int argc, char** argv)
     // execution. if you give a new value it would accept it else would use
     // the default value.
 
-    ClientSession session(scope);
+    ClientSession session(scope, session_options);
 
     // Create an input.
     auto defaultAInput = Input(8);

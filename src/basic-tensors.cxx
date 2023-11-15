@@ -34,6 +34,14 @@ int main(int argc, char** argv)
     // A tensor of Rank 3 or more is not known by any special name tensor.
   }
 
+  // Configure session options.
+  tensorflow::SessionOptions session_options;
+  // To suppress the Info message "I tensorflow/core/common_runtime/process_util.cc:146]
+  // Creating new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads for best performance."
+  session_options.config.set_inter_op_parallelism_threads(2);
+  // Necessary in order to change the graph after running it and then run it again.
+  session_options.config.mutable_experimental()->set_disable_optimize_for_static_graph(true);
+
   {
     // When building the ops you can specify the shape explicitly as well.
 
@@ -43,12 +51,11 @@ int main(int argc, char** argv)
     // [1 1] * [41; 1]
     auto x = MatMul(scope, {{1, 1}}, {{41}, {1}});
 
-    ClientSession session(scope);
+    ClientSession session(scope, session_options);
 
     std::vector<Tensor> outputs;
 
     auto status = session.Run({x}, &outputs);
-
     TF_CHECK_OK(status);
 
     std::cout << "Underlying Scalar value -> " << outputs[0].flat<int>() << std::endl;
@@ -56,9 +63,8 @@ int main(int argc, char** argv)
     // [1 2 3 4] + 10
     auto y = Add(scope, {1, 2, 3, 4}, 10);
 
-    status = session.Run({y}, &outputs);
-
-    TF_CHECK_OK(status);
+    status = session.Run({y}, &outputs);        // <-- Returns an error condition.
+    TF_CHECK_OK(status);                        // <-- Error is printed here.
 
     std::cout << "Underlying vector value -> " << outputs[0].flat<int>() << std::endl;
   }

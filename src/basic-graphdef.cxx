@@ -19,6 +19,10 @@ int main(int argc, char** argv)
   using namespace tensorflow;
   using namespace tensorflow::ops;
 
+  // Configure session options.
+  tensorflow::SessionOptions session_options;
+  session_options.config.set_inter_op_parallelism_threads(2);
+
   {
     // Create a root scope.
     auto scope = Scope::NewRootScope();
@@ -48,8 +52,7 @@ int main(int argc, char** argv)
     //
     // Note that in this example we are still creating the grpah in C++.
     // In other words not loading from a file.
-    std::unique_ptr<tensorflow::Session> session(
-        tensorflow::NewSession(tensorflow::SessionOptions()));
+    std::unique_ptr<tensorflow::Session> session(tensorflow::NewSession(session_options));
 
     // We are binding the session to this graph.
     TF_CHECK_OK(session->Create(graph));
@@ -106,8 +109,7 @@ int main(int argc, char** argv)
     GraphDef graph;
     TF_CHECK_OK(scope.ToGraphDef(&graph));
 
-    std::unique_ptr<tensorflow::Session> session(
-        tensorflow::NewSession(tensorflow::SessionOptions()));
+    std::unique_ptr<tensorflow::Session> session(tensorflow::NewSession(session_options));
 
     // We are binding the session to this graph.
     TF_CHECK_OK(session->Create(graph));

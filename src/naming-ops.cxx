@@ -28,10 +28,13 @@ int main(int argc, char** argv)
   auto add = Add(scope.WithOpName("Add"), a, b);
   auto sub = Sub(scope.WithOpName("Sub"), add, b);
 
-  ClientSession session(scope);
+  // Configure session options.
+  tensorflow::SessionOptions session_options;
+  session_options.config.set_inter_op_parallelism_threads(2);
 
-  // Run
-  std::vector<Tensor> outputs;
+  ClientSession session(scope, session_options);
+
+  // Run.
 
   // Now we are interested in getting the output from
   // both Add & Sub (recall that the Sub depends on Add).
@@ -41,6 +44,7 @@ int main(int argc, char** argv)
   //
   // Note - if you specify only "sub" then you would get
   // only 1 output i.e. result of sub operation.
+  std::vector<Tensor> outputs;
   TF_CHECK_OK(session.Run({add, sub}, &outputs));
 
   // See our output using DebugString that tells
