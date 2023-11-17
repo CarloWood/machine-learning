@@ -29,7 +29,7 @@ int main(int argc, char** argv)
   // platform / OS on which this app is running.
   auto env = tensorflow::Env::Default();
 
-  // check if a file provided as the input argument exists or not
+  // Check if a file provided as the input argument exists or not.
   auto status = env->FileExists(filePath);
   if (status.ok() == false)
   {

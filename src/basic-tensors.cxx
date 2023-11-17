@@ -20,15 +20,15 @@ int main(int argc, char** argv)
 
   {
     // We already know how to create Scalar which is a tensor of Rank 0.
-    auto aScalar = Input(2);
+    Input aScalar{2};
     std::cout << "Dimensions of a scalar - " << aScalar.tensor().shape().dims() << std::endl;
 
     // A tensor of Rank 1 is called a vector.
-    auto aVector = Input({2, 3});
+    Input aVector({2, 3});
     std::cout << "Dimensions of a vector - " << aVector.tensor().shape().dims() << std::endl;
 
     // A tensor of Rank 2 is called a matrix.
-    auto aMatrix = Input({{2, 3}, {6, 5}});
+    Input aMatrix({{2, 3}, {6, 5}});
     std::cout << "Dimensions of a matrix - " << aMatrix.tensor().shape().dims() << std::endl;
 
     // A tensor of Rank 3 or more is not known by any special name tensor.

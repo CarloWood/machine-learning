@@ -106,7 +106,7 @@ int main(int argc, char** argv)
     ClientSession session(scope, session_options);
 
     // Create an input.
-    auto defaultAInput = Input(8);
+    Input defaultAInput{8};
 
     // We will use Placeholder as the type for our variables.
     auto a = PlaceholderWithDefault(scope, defaultAInput, PartialTensorShape());

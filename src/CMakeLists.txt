@@ -28,3 +28,6 @@ add_test(intro-naming-ops naming-ops)
 add_test(intro-basic-tensors basic-tensors)
 add_test(intro-basic-graphdef basic-graphdef)
 add_test(intro-basic-io basic-io)
+
+# My stuff.
+add_test(neural_network neural_network)
