@@ -8,14 +8,14 @@ using namespace tensorflow;
 using namespace tensorflow::ops;
 
 // Function to create a dense (fully connected) layer.
-Output TanhDenseLayer(Scope& scope, Input inputs, int input_units, int output_units, std::vector<Operation>& need_running,
+Output SigmoidDenseLayer(Scope& scope, Input inputs, Input labels, int input_units, int output_units, std::vector<Operation>& need_running,
     std::vector<Output>* debug_outputs)
 {
   // Define a weights matrix.
-  auto weights = Variable(scope, {input_units, output_units}, DT_FLOAT);
+  auto weights = Variable(scope, {output_units, input_units}, DT_FLOAT);
 
   // Initialization of the weights.
-  need_running.push_back(Assign(scope, weights, RandomNormal(scope, {input_units, output_units}, DT_FLOAT)).operation);
+  need_running.push_back(Assign(scope, weights, RandomNormal(scope, {output_units, input_units}, DT_FLOAT)).operation);
 
   // Define a biases vector.
   auto biases = Variable(scope, {output_units}, DT_FLOAT);
@@ -30,8 +30,30 @@ Output TanhDenseLayer(Scope& scope, Input inputs, int input_units, int output_un
     debug_outputs->push_back(Identity(scope, biases));
   }
 
-  // Perform `inputs * weights + biases` and apply activation function.
-  return Tanh(scope, Add(scope, MatMul(scope, inputs, weights), biases));
+  // Perform `weights * inputs + biases` and apply activation function.
+  auto output = Sigmoid(scope, Add(scope, MatMul(scope, weights, inputs), biases));
+
+  // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
+  auto loss = ReduceMean(scope, Square(scope, Subtract(scope, labels, output)), {0});
+
+  return output;
+}
+
+void dump_graph(Scope const& scope, std::string name)
+{
+  // Create a GraphDef object to hold the graph.
+  GraphDef graph_def;
+  // Use the scope to serialize the graph.
+  Status s = scope.ToGraphDef(&graph_def);
+
+  // Write the GraphDef to a file.
+  std::string filename = name + ".pb";
+  std::ofstream file(filename , std::ios::out | std::ios::binary);
+  if (!graph_def.SerializeToOstream(&file))
+    std::cerr << "Failed to write graph to " << filename << "." << std::endl;
+  else
+    std::cout << "Output written to \"" << filename << "\"; "
+      "run: `python tb.py " << filename << "` to create logs/ and then `tensorboard --logdir=logs` to view.\n";
 }
 
 constexpr int UnknownRank = -1;
@@ -43,7 +65,7 @@ float y(float x)
 
 int main()
 {
-  // Define the scope and session.
+  // Define the scope.
   Scope scope = Scope::NewRootScope();
 
   //---------------------------------------------------------------------------
@@ -65,14 +87,15 @@ int main()
   //
   // Pre-activation output = v ⋅ w + b = x1⋅w1 + x2⋅w2 + b.
   // Since the activation function tanh leaves the sign unchanged, we want the pre-activation output
-  // be zero when a point is exactly on the line, and positive when it above the line, and negative
+  // to be zero when a point is exactly on the line, positive when it is above the line, and negative
   // when it is below the line. This means that w2 must be positive.
   //
   // Using the above y(float x): x2 = 2.5 * x1 - 4.3,
   // we have: x1⋅w1 + (2.5 * x1 - 4.3)⋅w2 + b = 0, and w2 > 0 -->
-  // x1⋅(w1 + 2.5⋅w2) - 4.3⋅w2 + b = 0 for any x1 --> w1 + 2.5⋅w2 = 0 and -4.3⋅w2 + b = 0 -->
+  // x1⋅(w1 + 2.5⋅w2) - 4.3⋅w2 + b = 0 for any x1 -->
+  // w1 + 2.5⋅w2 = 0 and -4.3⋅w2 + b = 0 -->
   // w1 = -2.5⋅w2, and b = 4.3⋅w2.
-  // For example, w2=1 > 0, then w1=-2.5 and b=4.3.
+  // For example, if w2=1 > 0, then w1=-2.5 and b=4.3.
   //
   // This proves that a single perceptron with two inputs is able to learn
   // how to separate 2D points from laying above or below a line.
@@ -80,12 +103,22 @@ int main()
   // Create a neural network layer existing of a single perceptron with two inputs and one output.
   std::vector<Operation> initialization_operations;
   std::vector<Output> debug_outputs;
-  auto output = TanhDenseLayer(scope, inputs, 2, 1, initialization_operations, &debug_outputs);
+  auto output = SigmoidDenseLayer(scope, inputs, labels, 2, 1, initialization_operations, &debug_outputs);
+
+  // Gradients of loss w.r.t weights and biases
+//  std::vector<tensorflow::Output> grad_outputs;
+//  TF_CHECK_OK(AddSymbolicGradients(scope, {loss}, {weights, biases}, &grad_outputs));
+
+  // Assuming you have a learning rate defined as a constant or placeholder.
+//  auto optimizer = ApplyGradientDescent(scope, /* trainable variables */, /* learning rate */, /* gradient computation */);
+
+  // Write the graph to a file.
+  dump_graph(scope, "neural_network");
 
   //---------------------------------------------------------------------------
   // Fill training samples.
 
-  // Create a random number generator
+  // Create a random number generator.
   std::default_random_engine generator;
   std::uniform_real_distribution<float> distribution(0.001, 0.1);
 
@@ -105,6 +138,7 @@ int main()
   Tensor inputs_tensor{DT_FLOAT, TensorShape{number_of_data_points, 2}};
   Tensor labels_tensor{DT_FLOAT, TensorShape{number_of_data_points}};
 
+  // Fill the tensors with our training data.
   std::copy_n(labels_data.begin(), labels_data.size(), labels_tensor.flat<float>().data());
   std::copy_n(inputs_data.begin(), inputs_data.size(), inputs_tensor.flat<float>().data());
 
@@ -125,23 +159,7 @@ int main()
   std::cout << "Weights: " << outputs[0].DebugString() << std::endl;
   std::cout << "Biases: " << outputs[1].DebugString() << std::endl;
 
-#if 0
-  // Create a GraphDef object to hold the graph.
-  GraphDef graph_def;
-  // Use the scope to serialize the graph.
-  Status s = scope.ToGraphDef(&graph_def);
+  //---------------------------------------------------------------------------
+  // Training.
 
-  // Write the GraphDef to a file.
-  std::ofstream file("exported_graph.pb", std::ios::out | std::ios::binary);
-  if (!graph_def.SerializeToOstream(&file))
-    std::cerr << "Failed to write graph to exported_graph.pb." << std::endl;
-  else
-    std::cout << "Output written to exported_graph.pb; run: `python tb.py` to create logs/ and then `tensorboard --logdir=logs` to view.\n";
-
-  // Define the loss function (e.g., cross-entropy).
-//  auto loss = Mean(scope, Square(scope, Subtract(scope, logits, labels)), {0});
-
-  // Define the optimizer and training operation.
-//  auto optimizer = tensorflow::ops::ApplyGradientDescent(scope, /* learning_rate= */ 0.01, /* compute gradients, etc. */);
-#endif
 }

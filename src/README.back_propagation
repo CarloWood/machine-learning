@@ -1,0 +1,375 @@
+Gradient matrix calculation
+===========================
+
+Each layer has one weights-matrix accompanied with one gradient-matrix
+that has the same shape as the weights-matrix.
+
+Consider the last layer of a neural network, with N inputs and M outputs.
+It has
+
+* inputs X (a column vector size N),
+* weights matrix W (with shape MxN),
+* bias B (a column vector size M) and
+* an activation function a(v), immediately followed by
+
+    For example, a() could be the Sigmoid function:
+     a(v) = 1 / (1 + exp(-v)), applied element-wise on any component of v.
+
+* the loss function, l(z).
+
+    For example, the loss function could be the Mean Squared Error function:
+     l(z) = 1/M ⋅ \sum_{i=0}^{M-1} (zᵢ - tᵢ)²
+
+    Where tᵢ are the elements of T(X), the target for Z for a given X.
+
+The loss function L is then given by,
+
+ L = l(a(WX + B)),
+
+where a() is applied element wise and l() combines all elements of a() into
+a single scalar value.
+
+It is efficient to append the bias vector as an extra column to the weights matrix,
+and the append a 1 to the inputs vector - this has the same effect but gets rid
+of the bias vector.
+
+L then can be calculated in three steps:
+
+ V = WX            a column-vector of size M, the weighted sum of the inputs plus bias.
+ Z = a(V)          a column-vector of size M, the activated outputs of this layer.
+ L = l(Z)          a scalar, the loss function (which only exits if Z is the output
+                   of the last layer).
+
+A single adjustment of W is done by gradient decent (in
+the direction that the slope ∂L/∂wᵢⱼ is the steepest):
+
+ W' = W - α ∇_W L
+
+where ∇_W means "∇ with subscript uppercase W" (LaTeX notation)
+and ∇_W L is the gradient of L with respect to W: a matrix ∂L/∂wᵢⱼ,
+for 0 <= i < M, 0 <= j < N (W has the shape MxN). Note that we
+count the bias as extra input (N is one larger than the real number
+of inputs).
+
+The learning rate α is a small real value that controls the
+magnitude of the update. It can't be too large because then one
+might overshoot the target and/or end up way passed the point
+where the gradient is still more or less the same.
+
+An example
+----------
+
+Lets work out an example taken from https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/.
+The bias gets included in W as last column. The first layer has three inputs
+(we consider the '1' that is multiplied with the bias an input as well): N=3 and M=2.
+
+We start with calculating V = WX,
+
+                         ⎡x₀⎤
+   ⎡v₀⎤ = ⎡ w₀₀ w₀₁ w₀₂ ⎤⎢x₁⎥ = ⎡ w₀₀x₀ + w₀₁x₁ + w₀₂ ⎤
+   ⎣v₁⎦   ⎣ w₁₀ w₁₁ w₁₂ ⎦⎣1 ⎦   ⎣ w₁₀x₀ + w₁₁x₁ + w₁₂ ⎦
+
+Where w₀₂ = w₁₂ = b₁ = 0.35
+
+Filling in the initial weights and inputs from the website:
+                            ⎡0.05⎤
+   ⎡v₀⎤ = ⎡ 0.15 0.20 0.35 ⎤⎢0.10⎥ = ⎡ 0.15*0.05 + 0.20*0.10 + 0.35 ⎤ = ⎡0.3775⎤
+   ⎣v₁⎦   ⎣ 0.25 0.30 0.35 ⎦⎣1   ⎦   ⎣ 0.15*0.05 + 0.30*0.10 + 0.35 ⎦   ⎣0.3875⎦
+
+Apply the activiation function:
+
+   ⎡z₀⎤ = a(V) = ⎡a(0.3775)⎤ = ⎡0.593269992⎤
+   ⎣z₁⎦          ⎣a(0.3875)⎦   ⎣0.596884378⎦
+
+For the second layer, we use a new set of variables.
+Z from the first layer plays the role of X,
+we use Q instead of W for the weights matrix and
+lets replace the pre-activation values V with F,
+and post-activiation outputs Z with O.
+
+The we get for the second layer:
+
+ F = QZ            a column-vector of size M
+ O = a(F)          a column-vector of size M
+ L = l(O)          a scalar
+
+ F = QZ            a column-vector of size M, the weighted sum of the inputs plus bias.
+ O = a(F)          a column-vector of size M, the activated outputs of this layer.
+ L = l(O)          a scalar, the loss function since this is the last layer.
+
+As well as the chain rule,
+
+ ∇_Q L = (∇_O L)(∇_F O)(∇_Q F)
+
+And
+
+ ∇_O L = [∂L /∂oⱼ ]      a row-vector of size 1xM
+ ∇_F O = [∂oᵢ/∂fⱼ ]      a matrix with shape MxM
+ ∇_Q F = [∂fᵢ/∂qⱼₖ]      a tensor with shape MxMxN
+
+The second layer then gives (where I use {o₀,o₁} instead of the {out_o₁,out_o₂} from the website):
+
+                         ⎡z₀⎤
+   ⎡f₀⎤ = ⎡ q₀₀ q₀₁ q₀₂ ⎤⎢z₁⎥ = ⎡ q₀₀z₀ + q₀₁z₁ + q₀₂ ⎤
+   ⎣f₁⎦   ⎣ q₁₀ q₁₁ q₁₂ ⎦⎣1 ⎦   ⎣ q₁₀z₀ + q₁₁z₁ + q₁₂ ⎦
+
+Where q₀₂ = q₁₂ = b₂ = 0.60
+
+Again filling in the initial values from the website gives:
+                            ⎡0.593269992⎤
+   ⎡f₀⎤ = ⎡ 0.40 0.45 0.60 ⎤⎢0.596884378⎥ = ⎡ 0.40*0.593269992 + 0.45*0.596884378 + 0.60 ⎤ = ⎡1.105905967⎤
+   ⎣f₁⎦   ⎣ 0.50 0.55 0.60 ⎦⎣1          ⎦   ⎣ 0.50*0.593269992 + 0.55*0.596884378 + 0.60 ⎦   ⎣1.224921404⎦
+
+Apply the activiation function:
+
+   ⎡o₀⎤ = a(F) = ⎡a(1.105905967)⎤ = ⎡0.75136507⎤
+   ⎣o₁⎦          ⎣a(1.224921404)⎦   ⎣0.77292847⎦
+
+The loss (Error_total) then becomes:
+
+ L = ((o₀ - t₀)² + (o₁ - t₁)²)/2 = ((0.75136507 - 0.01)² + (0.77292847 - 0.99)²)/2 = 0.298371108
+
+Then we can calculate
+
+ ∇_O L = [∂L /∂oⱼ] = [ ∂L/∂o₀ ∂L/∂o₁ ] = [ o₀-t₀ o₁-t₁ ] = [ 0.74136507 -0.21707153 ]
+
+ ∇_F O = [∂oᵢ/∂fⱼ] = ⎡ ∂o₀/∂f₀ ∂o₀/∂f₁ ⎤ = ⎡ a(f₀)(1 - a(f₀))        0          ⎤ = ⎡ o₀(1 - o₀)    0       ⎤ =
+                     ⎣ ∂o₁/∂f₀ ∂o₁/∂f₁ ⎦   ⎣       0           a(f₁)(1 - a(f₁)) ⎦   ⎣    0       o₁(1 - o₁) ⎦
+
+       = ⎡ 0.75136507(1 - 0.75136507)             0               ⎤ = ⎡ 0.18681560  0          ⎤
+         ⎣            0                0.77292847(1 - 0.77292847) ⎦   ⎣ 0           0.17551005 ⎦
+
+                      ⎡ ∂f₀/∂q₀₀                     ∂f₀/∂q₁₀                     ⎤
+                      ⎢           ∂f₀/∂q₀₁                     ∂f₀/∂q₁₁           ⎥
+                      ⎢                     ∂f₀/∂q₀₂                     ∂f₀/∂q₁₂ ⎥
+ ∇_Q F = [∂fᵢ/∂qⱼₖ] = ⎢                                                           ⎥ =
+                      ⎢ ∂f₁/∂q₀₀                     ∂f₁/∂q₁₀                     ⎥
+                      ⎢           ∂f₁/∂q₀₁                     ∂f₁/∂q₁₁           ⎥
+                      ⎣                     ∂f₁/∂q₀₂                     ∂f₁/∂q₁₂ ⎦
+
+                      ⎡    z₀                           0                         ⎤
+                      ⎢              z₁                           0               ⎥
+                      ⎢                        1                            0     ⎥
+                    = ⎢                                                           ⎥ =
+                      ⎢    0                            z₀                        ⎥
+                      ⎢              0                            z₁              ⎥
+                      ⎣                        0                            1     ⎦
+
+                      ⎡ 0.593269992                  0                           ⎤
+                      ⎢              0.596884378                  0              ⎥
+                      ⎢                           1                            0 ⎥
+                      ⎢                                                          ⎥
+                      ⎢ 0                            0.593269992                 ⎥
+                      ⎢              0                            0.596884378    ⎥
+                      ⎣                           0                            1 ⎦
+
+Emperically, by making small changes to the weights and calculation the different in L (see nn_example.cxx),
+I found the gradient matrix:
+
+ ∇_Q L = ⎡ ∂L/∂q₀₀ ∂L/∂q₀₁ ∂L/∂q₀₂ ⎤ ≈ ⎡  0.0821670  0.0826676  0.1384985 ⎤
+         ⎣ ∂L/∂q₁₀ ∂L/∂q₁₁ ∂L/∂q₁₂ ⎦   ⎣ -0.0226025 -0.0227402 -0.0380982 ⎦
+
+which therefore should be equal to
+
+ ∇_Q L = (∇_O L)(∇_F O)(∇_Q F) =
+
+                                    ⎡ 0.18681560  0          ⎤ ⎡ {0.593269992,0.596884378,1}          {0,0,0}            ⎤
+       = [ 0.74136507 -0.21707153 ] ⎣ 0           0.17551005 ⎦ ⎣          {0,0,0}            {0.593269992,0.596884378,1} ⎦ =
+
+
+       = [ (0.74136507 * 0.18681560 + -0.21707153 * 0) (0.74136507 * 0 + -0.21707153 * 0.17551005 ] ×
+                                                               ⎡ {0.593269992,0.596884378,1}          {0,0,0}            ⎤ =
+                                                               ⎣          {0,0,0}            {0.593269992,0.596884378,1} ⎦
+
+                                 ⎡ {0.593269992,0.596884378,1}          {0,0,0}            ⎤
+       = [ 0.138499 -0.0380982 ] ⎣          {0,0,0}            {0.593269992,0.596884378,1} ⎦ =
+
+
+       = [ 0.138499 * {0.593269992,0.596884378,1}  -0.0380982 * {0.593269992,0.596884378,1} ] =
+
+       = [ {0.0821673, 0.0826679, 0.138499}  {-0.0226025, -0.0227402, -0.0380982} ]
+
+which is a [1x2x3] matrix, lets write it as a [2x3] matrix, meaning columns become rows and depth become columns:
+
+         ⎡  0.0821673  0.0826679  0.138499  ⎤
+         ⎣ -0.0226025 -0.0227402 -0.0380982 ⎦
+
+which is close to the emperically calculated values, success!
+
+
+Instead of doing three tensor multiplications, (∇_O L)(∇_F O)(∇_Q F), we can note that effectively
+
+ ∂L/∂qᵢⱼ = ∂L/∂oᵢ ∂oᵢ/∂fᵢ ∂fᵢ/∂qᵢⱼ = δ₂ᵢzⱼ
+
+where zⱼ is the j-th input of the current layer and δ₂ᵢ is a characteristic
+of the i-th output neuron of the second layer:
+
+ δ₂ᵢ = ∂L/∂oᵢ ∂oᵢ/∂fᵢ = (oᵢ-tᵢ) oᵢ(1-oᵢ)
+                           ^      ^
+                           |      '-------------------------------------------.
+in the case of the last layer using the MSE loss function, and when using a sigmoid activation function.
+
+
+For the first layer we need the gradient matrix ∇_W L,
+which using the chain rule, can be written as:
+
+ ∇_W L = (∇_Z L)(∇_V Z)(∇_W V)
+
+Note that
+
+ ∇_Z L = [∂L /∂zⱼ ]      a row-vector of size 1xM
+ ∇_V Z = [∂zᵢ/∂vⱼ ]      a matrix with shape MxM
+ ∇_W V = [∂vᵢ/∂wⱼₖ]      a tensor with shape MxMxN
+
+The first layer then gives,
+(where I use {z₀,z₁} instead of the {out_h₁,out_h₂} from the website, and {v₀,v₁} instead of {net_h₁,net_h₂}):
+
+                         ⎡x₀⎤
+   ⎡v₀⎤ = ⎡ w₀₀ w₀₁ w₀₂ ⎤⎢x₁⎥ = ⎡ w₀₀x₀ + w₀₁x₁ + w₀₂ ⎤
+   ⎣v₁⎦   ⎣ w₁₀ w₁₁ w₁₂ ⎦⎣1 ⎦   ⎣ w₁₀x₀ + w₁₁x₁ + w₁₂ ⎦
+
+Where w₀₂ = w₁₂ = b₁ = 0.35
+
+Again filling in the initial values from the website:
+                            ⎡0.05⎤
+   ⎡v₀⎤ = ⎡ 0.15 0.20 0.35 ⎤⎢0.10⎥ = ⎡ 0.15*0.05 + 0.20*0.10 + 0.35 ⎤ = ⎡0.3775⎤
+   ⎣v₁⎦   ⎣ 0.25 0.30 0.35 ⎦⎣1   ⎦   ⎣ 0.15*0.05 + 0.30*0.10 + 0.35 ⎦   ⎣0.3875⎦
+
+Applying the activiation function:
+
+   ⎡z₀⎤ = a(V) = ⎡a(0.3775)⎤ = ⎡0.593269992⎤
+   ⎣z₁⎦          ⎣a(0.3875)⎦   ⎣0.596884378⎦
+
+Note that the loss L is
+
+ L = 1/M \sum_{i=0}^{M-1}((oᵢ - tᵢ)²)
+ oᵢ = a(fᵢ)
+ fᵢ = \sum_{j=0}^{N-1}(qᵢⱼ zⱼ)
+
+Thus
+
+ ∂L/∂zⱼ = ∂L/∂oᵢ ∂oᵢ/∂fᵢ ∂fᵢ/∂zⱼ = 2/M \sum_{i=0}^{M-1}((oᵢ - tᵢ) oᵢ(1-oᵢ)qᵢⱼ)
+
+And we can calculate
+
+ ∇_Z L = [∂L/∂zⱼ] = [ ∂L/∂z₀ ∂L/∂z₁ ] = [ \sum_{i=0}^{M-1}((oᵢ-tᵢ)oᵢ(1-oᵢ)qᵢ₀) \sum_{i=0}^{M-1}((oᵢ-tᵢ)oᵢ(1-oᵢ)qᵢ₁) ] =
+       = [ (o₀-t₀)o₀(1-o₀)q₀₀ + (o₁-t₁)o₁(1-o₁)q₁₀  (o₀-t₀)o₀(1-o₀)q₀₁ + (o₁-t₁)o₁(1-o₁)q₁₁ ] =
+       = [ (0.75136507-0.01)0.75136507(1-0.75136507)0.40 + (0.77292847-0.99)0.77292847(1-0.77292847)0.50
+                            (0.75136507-0.01)0.75136507(1-0.75136507)0.45 + (0.77292847-0.99)0.77292847(1-0.77292847)0.55 ]
+       = [ 0.03635031 0.04137032 ]
+
+ ∇_V Z = [∂zᵢ/∂vⱼ] = ⎡z₀(1-z₀)   0      ⎤ = ⎡ 0.593269992(1-0.593269992)  0                          ⎤ = ⎡ 0.241300708 0           ⎤
+                     ⎣  0      z₁(1-z₁) ⎦   ⎣ 0                           0.596884378(1-0.596884378) ⎦   ⎣ 0           0.240613417 ⎦
+
+and
+                      ⎡ ∂v₀/∂w₀₀                     ∂v₀/∂w₁₀                     ⎤
+                      ⎢           ∂v₀/∂w₀₁                     ∂v₀/∂w₁₁           ⎥
+                      ⎢                     ∂v₀/∂w₀₂                     ∂v₀/∂w₁₂ ⎥
+ ∇_W V = [∂vᵢ/∂wⱼₖ] = ⎢                                                           ⎥ =
+                      ⎢ ∂v₁/∂w₀₀                     ∂v₁/∂w₁₀                     ⎥
+                      ⎢           ∂v₁/∂w₀₁                     ∂v₁/∂w₁₁           ⎥
+                      ⎣                     ∂v₁/∂w₀₂                     ∂v₁/∂w₁₂ ⎦
+
+                      ⎡    x₀                           0                         ⎤
+                      ⎢              x₁                           0               ⎥
+                      ⎢                        1                            0     ⎥
+                    = ⎢                                                           ⎥ =
+                      ⎢    0                            x₀                        ⎥
+                      ⎢              0                            x₁              ⎥
+                      ⎣                        0                            1     ⎦
+
+                      ⎡ 0.05                         0                           ⎤
+                      ⎢              0.1                          0              ⎥
+                      ⎢                           1                            0 ⎥
+                      ⎢                                                          ⎥
+                      ⎢ 0                            0.05                        ⎥
+                      ⎢              0                            0.1            ⎥
+                      ⎣                           0                            1 ⎦
+
+Emperically, by making small changes to the weights and calculation the different in L, I found the gradient matrix:
+
+ ∇_W L = ⎡ ∂L/∂w₀₀ ∂L/∂w₀₁ ∂L/∂w₀₂ ⎤ ≈ ⎡ 0.0004386 0.0008771 0.0087714 ⎤
+         ⎣ ∂L/∂w₁₀ ∂L/∂w₁₁ ∂L/∂w₁₂ ⎦   ⎣ 0.0004977 0.0009954 0.0099543 ⎦
+
+which therefore should be equal to
+
+ ∇_W L = (∇_Z L)(∇_V Z)(∇_W V) = (see nn_example.cxx)
+       = [ {0.000438568, 0.000877136, 0.00877136}  {0.000497713, 0.000995425, 0.00995425} ]
+
+which is a [1x2x3] matrix, lets write it as a [2x3] matrix, meaning columns become rows and depth become columns:
+
+         ⎡  0.000438568, 0.000877136, 0.00877136 ⎤
+         ⎣  0.000497713, 0.000995425, 0.00995425 ⎦
+
+which is close to the emperically calculated values, success!
+
+And again, instead of doing three tensor multiplications, (∇_Z L)(∇_V Z)(∇_W V), we can note that effectively
+
+ ∂L/∂wᵢⱼ = ∂L/∂zᵢ ∂zᵢ/∂vᵢ ∂vᵢ/∂wᵢⱼ = δ₁ᵢxⱼ
+
+where xⱼ is the j-th input of the first layer and δ₁ᵢ is a characteristic
+of the i-th output neuron of the first layer (using δ₂ᵢ = (oᵢ-tᵢ)oᵢ(1-oᵢ))
+
+ δ₁ᵢ = ∂L/∂zᵢ ∂zᵢ/∂vᵢ = (\sum_{k=0}^{M-1}(δ₂ₖ qₖᵢ)) zᵢ(1-zᵢ)
+                                                        ^
+                                   .--------------------'
+in the case of the first layer a sigmoid activation function.
+Note that the sum is over the outputs of the next layer.
+
+
+Generalization
+--------------
+
+Consider the layer 'l',
+
+    (x₀) ---w₀₀--> ⊕=v₀(*)z₀-->
+         ⟍       ↗
+          w₁₀  ⟋
+             ⤫
+          w₀₁  ⟍
+         ⟋       ↘
+    (x₁) ---w₁₁--> ⊕=v₁(*)z₁-->
+
+To update this layer with weights/bias matrix W, we need
+
+ ∂L/∂wᵢⱼ = δₗᵢxⱼ
+
+where [xⱼ] are the current inputs values of the layer (with a 1 appended):
+
+     ⎡x₀⎤
+ X = ⎢x₁⎥
+     ⎣1 ⎦
+
+and
+
+ δₗᵢ = ∂L/∂zᵢ zᵢ(1-zᵢ)
+
+where the zᵢ are the outputs of the current layer (after activation with
+a sigmoid function), and
+
+ ∂L/∂zᵢ = \sum_{k=0}^{M₍ₗ₊₁₎-1}(δ₍ₗ₊₁₎ₖ qₖᵢ)
+
+where M₍ₗ₊₁₎ is the number of outputs of the next layer, δ₍ₗ₊₁₎ₖ is
+the δ of the next layer and qₖᵢ are the weights of the next layer.
+
+Therefore it makes sense to calculate this value for
+the current layer before going the the previous layer during
+back propagation:
+
+ ξₗᵢ = ∂L/∂xᵢ = \sum_{k=0}^{Mₗ-1}(δₗₖ wₖᵢ)
+
+which is a column-vector vector with a size that is one less than X.
+
+For the initial value, of the one-past-the-last layer one should use
+
+ ξ₍ₗ₊₁₎ᵢ = 2/Mₗ (zᵢ - tᵢ)
+
+Then we can define
+
+ δₗᵢ = ξ₍ₗ₊₁₎ᵢ zᵢ(1-zᵢ)
+ ξₗᵢ = \sum_{k=0}^{Mₗ-1}(δₗₖ wₖᵢ)
+ wᵢⱼ' = wᵢⱼ - α δₗᵢ xⱼ
+
+at which point δₗᵢ can be forgotten we we can continue with
+the previous layer (l --> l-1).
+
