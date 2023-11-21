@@ -19,8 +19,8 @@ class Layer
 
   void forward(Vector inputs)
   {
-    inputs_ = inputs;
-    outputs_ = activation(contract(weights_, inputs.append(1), 1, 0));
+    inputs_ = inputs.append(1);
+    outputs_ = activation(contract(weights_, inputs_, 1, 0));
   }
 
   Vector const& outputs() const { return outputs_; }
@@ -40,7 +40,10 @@ class Layer
         sum += delta(k) * weights_(k, i);
       xi_l(i) = sum;
     }
-    // wₖᵢ' = wₖᵢ - α δₗᵢ xⱼ
+    // wᵢⱼ' = wᵢⱼ - α δₗᵢ xⱼ
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < 3; ++j)
+        weights_(i, j) -= alpha * delta(i) * inputs_(j);
 
     return xi_l;
   }
@@ -84,7 +87,7 @@ int main()
   T(0) = 0.01;
   T(1) = 0.99;
 
-  for (int step = 0; step < 100; ++step)
+  for (int step = 0; step < 10000; ++step)
   {
     // Forward pass.
     nn[0].forward(X);
@@ -93,10 +96,10 @@ int main()
     // Calculate loss.
     double L = mse(nn[1].outputs(), T);
     std::cout << "output = " << nn[1].outputs() << "; L = " << L << std::endl;
+    //std::cout << "nn[0] = " << nn[0] << "; nn[1] = " << nn[1] << std::endl;
 
     auto xi = derivative_mse(nn[1].outputs(), T);
-
-    xi = nn[1].back_propagate(xi);
-    xi = nn[0].back_propagate(xi);
+    xi = nn[1].back_propagate(0.5, xi);
+    xi = nn[0].back_propagate(0.5, xi);
   }
 }
