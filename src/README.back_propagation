@@ -318,15 +318,18 @@ Note that the sum is over the outputs of the *next* layer.
 Generalization
 --------------
 
+In this README 'next layer' means layer 'l + 1' and previous layer
+is layer 'l - 1' (closer to the input of the neural network).
+
 Consider the layer 'l',
 
-    (x₀) ---w₀₀--> ⊕=v₀(*)z₀-->
-         ⟍       ↗
-          w₁₀  ⟋
-             ⤫
-          w₀₁  ⟍
-         ⟋       ↘
-    (x₁) ---w₁₁--> ⊕=v₁(*)z₁-->
+             -->(x₀) ---w₀₀--> ⊕=v₀(*)z₀-->
+                     ⟍       ↗
+   previous           w₁₀  ⟋                    next
+  layer (l-1)            ⤫                   layer (l+1)
+                      w₀₁  ⟍
+                     ⟋       ↘
+             -->(x₁) ---w₁₁--> ⊕=v₁(*)z₁-->
 
 To update this layer with weights/bias matrix W, we need
 

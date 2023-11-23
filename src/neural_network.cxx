@@ -24,8 +24,6 @@ void dump_graph(Scope const& scope, std::string name)
       "run: `python tb.py " << filename << "` to create logs/ and then `tensorboard --logdir=logs` to view.\n";
 }
 
-constexpr int UnknownRank = -1;
-
 float x1(float x0)
 {
   return 2.5f * x0 - 4.3f;
@@ -51,6 +49,12 @@ class DebugShow
     fetch_outputs_.push_back(Identity(scope_, output));
   }
 
+  void operator()(Scope const& scope, std::string label, Output const& output)
+  {
+    labels_.push_back(label);
+    fetch_outputs_.push_back(Identity(scope, output));
+  }
+
   void dump() const
   {
     for (int i = 0; i < labels_.size(); ++i)
@@ -63,17 +67,7 @@ int main()
   // Define the scope.
   Scope scope = Scope::NewRootScope();
   DebugShow debug_show(scope);
-
-  //---------------------------------------------------------------------------
-  // Create graph.
-
-  // Define the input placeholder with shape [2, UnknownRank], where 'UnknownRank' means the first dimension is dynamic.
-  auto inputs = Placeholder(scope.WithOpName("inputs"), DT_FLOAT, Placeholder::Shape({2, UnknownRank}));
-  debug_show("inputs", inputs);
-
-  // Define the labels placeholder with shape [UnknownRank], where 'UnknownRank' means the dimension is dynamic.
-  auto labels = Placeholder(scope.WithOpName("labels"), DT_FLOAT, Placeholder::Shape({UnknownRank}));
-  debug_show("labels", labels);
+  std::vector<Operation> run_operations;
 
   //         .---.
   // x₀ ---> |   | ---> [tanh activation] ---> { >0 --> label = 1.
@@ -100,41 +94,122 @@ int main()
   // how to separate 2D points from laying above or below a line.
 
   // Create a neural network layer existing of a single perceptron with two inputs and one output.
-  std::vector<Operation> initialization_operations;
-  int input_units = 2;
-  int output_units = 1;
+  constexpr int input_units = 2;
+  constexpr int output_units = 1;
+  constexpr int UnknownRank = -1;       // Dynamic batch size.
+  constexpr float alpha = 0.01;
+
+  //---------------------------------------------------------------------------
+  // Create graph.
+
+  // Define the input placeholder with shape [2, UnknownRank], where 'UnknownRank' means the first dimension is dynamic.
+  auto inputs = Placeholder(scope.WithOpName("inputs"), DT_FLOAT, Placeholder::Shape({input_units, UnknownRank}));
+  debug_show("inputs", inputs);
+
+  // Define the labels placeholder with shape [UnknownRank], where 'UnknownRank' means the dimension is dynamic.
+  auto labels = Placeholder(scope.WithOpName("labels"), DT_FLOAT, Placeholder::Shape({UnknownRank}));
+  debug_show("labels", labels);
 
   // Define a weights_bias matrix.
   auto weights_bias = Variable(scope, {output_units, input_units + 1}, DT_FLOAT);
 
+  //---------------------
+  // Initialization
+
   // Initialization of the weights and bias.
-  initialization_operations.push_back(Assign(scope, weights_bias, RandomNormal(scope, {output_units, input_units + 1}, DT_FLOAT)).operation);
+  run_operations.push_back(Assign(scope, weights_bias, RandomNormal(scope, {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(1))).operation);
   debug_show("weights_bias", weights_bias);
 
-  // Get the dynamic shape of 'inputs'.
-  auto inputs_shape = Shape(scope, inputs);
-
-  // Extract the batch size (the second dimension of 'inputs_shape')
-  auto batch_size = Slice(scope, inputs_shape, {1}, {1});
-
-  // Create a tensor of ones with dynamic shape [batch_size].
-  auto ones = Fill(scope, batch_size, 1.0f);
-  debug_show("ones", ones);
-
-  // For Concat the work, 'ones' needs to have the shape [batch_size, 1].
-  auto ones_expanded = ExpandDims(scope, ones, 0);
-  debug_show("ones_expanded", ones_expanded);
-
-  // Concatenate 'inputs' and 'ones_expanded' along the second dimension.
-  auto inputs_1 = Concat(scope, {Input(inputs), ones_expanded}, 0);
+  // Append a 1 to all inputs.
+  auto batch_size = Slice(scope, Shape(scope, inputs), {1}, {1});
+  auto inputs_1 = Concat(scope, {Input(inputs), ExpandDims(scope, Fill(scope, batch_size, 1.0f), 0)}, 0);
   debug_show("inputs_1", inputs_1);
 
-  // Perform `weights_bias * inputs_1` and apply activation function.
-  auto output = Sigmoid(scope, MatMul(scope, weights_bias, inputs_1));
-  debug_show("output", output);
+  // Divide alpha by batch_size for use during backpropagation.
+  auto learning_rate = Div(scope, alpha, Cast(scope, batch_size, DT_FLOAT));
+  debug_show("learning_rate", learning_rate);
 
-  // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
-  auto loss = ReduceMean(scope, Square(scope, Subtract(scope, output, labels)), {0});
+  //---------------------
+  // Forward propagation.
+
+  // Perform `weights_bias * inputs_1` and apply activation function.
+  auto outputs = Sigmoid(scope, MatMul(scope, weights_bias, inputs_1));
+  debug_show("outputs", outputs);
+
+  // Calculate the difference between the outputs and the targets.
+  auto residual = Subtract(scope, outputs, labels);     // Shape: [output_units x batch_size]
+
+  // The loss function is not really used.
+  {
+    // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
+    auto loss = ReduceMean(scope, Square(scope, residual), {0});
+    debug_show("loss", loss);
+  }
+
+  //---------------------
+  // Backward propagation.
+
+  // Calculate the initial xi value. This is ∂L/∂oᵢ, where L is the loss and O the output (weights_bias * inputs_1).
+  // So really this is 2/M (output - labels), but since M = output_units = 1 that is just 2 * residual.
+  //
+  // As described in README.back_propagation:
+  //
+  //    ξ₍ₗ₊₁₎ᵢ = 2/Mₗ (zᵢ - tᵢ)
+  //
+  // where i runs over the outputs (zᵢ) of the last layer (0 <= i < output_units (Mₗ)).
+  //
+  // Adding an extra dimension for the batch size, and leaving away the l index
+  // that stands for layer, we have:
+  //
+  //    ξᵢₛ = 2 residualᵢₛ
+  //
+  // where s runs over all the samples in the batch.
+  //
+  auto xi_1 = Multiply(scope, 2.f, residual);   // Shape: [output_units x batch_size]
+  debug_show("xi_1", xi_1);
+
+  // Calculate delta as xi_1 times the derivative of the activation function.
+  // For the sigmoid function we have: sigmoid' = outputs * (1 - outputs).
+  //
+  // As described in README.back_propagation:
+  //
+  //    δₗᵢ = ξ₍ₗ₊₁₎ᵢ zᵢ(1-zᵢ)
+  //
+  // where i runs over the outputs (zᵢ) of the current layer (0 <= i < output_units).
+  //
+  // Again adding an extra dimension for the batch size and leaving l away, we have:
+  //
+  //    δᵢₛ = ξᵢₛ zᵢₛ(1-zᵢₛ)
+  //
+  // where s runs over all the samples in the batch.
+  //
+  auto derivative_activation = Multiply(scope, outputs, Sub(scope, 1.f, outputs));
+  auto delta = Multiply(scope, xi_1, derivative_activation);      // Shape: [output_units x batch_size]
+  debug_show("delta", delta);
+
+  // Calculate xi_0. The README has ξₗᵢ = \sum_{k=0}^{Mₗ-1}(δₗₖ wₖᵢ).
+  // Adding an extra dimension for the batch size and leaving l away, that becomes:
+  //
+  //    ξᵢₛ = \sum_{k=0}^{Mₗ-1}(δₖₛ wₖᵢ) = Wᵀ×δ
+  //
+  // Not used: we only have a single layer (xi_0 never needs to be calculated).
+//  auto xi_0 = MatMul(scope, Transpose(scope, weights_bias, {1, 0}), delta);
+//  debug_show("xi_0", xi_0);
+
+  // Update weights_bias. The README has wᵢⱼ' = wᵢⱼ - α δₗᵢ xⱼ, where δₗᵢ xⱼ is the gradient.
+  // Adding an extra dimension for the batch size and leaving l away, that becomes:
+  //
+  //    Gᵢⱼ = \sum_{s=0}^{batch_size-1}(δᵢₛ xⱼₛ) = δ×Xᵀ
+  //    wᵢⱼ' = wᵢⱼ - (α / batch_size) Gᵢⱼ
+  //
+  auto gradient = MatMul(scope, delta, Transpose(scope, inputs_1, {1, 0}));
+  debug_show("gradient", gradient);
+  auto dg = Multiply(scope, learning_rate, gradient);
+  debug_show("dg", dg);
+
+  // Update weights_bias.
+  auto update_weights_bias = AssignSub(scope, weights_bias, dg, AssignSub::Attrs().UseLocking(true)).operation;
+  debug_show(scope.WithControlDependencies({update_weights_bias}), "weights_bias", weights_bias);
 
   // Write the graph to a file.
   dump_graph(scope, "neural_network");
@@ -144,6 +219,7 @@ int main()
 
   // Create a random number generator.
   std::default_random_engine generator;
+  generator.seed(1);
   std::uniform_real_distribution<float> distribution(0.001, 0.1);
 
   std::vector<float> labels_data = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
@@ -174,13 +250,15 @@ int main()
   ClientSession session(scope);
 
   // Fill weights and biases with random initial values.
-  TF_CHECK_OK(session.Run({}, {}, initialization_operations, nullptr));
+  TF_CHECK_OK(session.Run({}, {}, run_operations, nullptr));
 
   // Associate the placeholder with the input data.
   ClientSession::FeedType inputs_feed = {
     {inputs, inputs_tensor},
     {labels, labels_tensor}
   };
+
+  // Run the session with the feed and debug fetches.
   TF_CHECK_OK(session.Run(inputs_feed, debug_show.fetch_outputs(), debug_show.outputs()));
   debug_show.dump();
 
