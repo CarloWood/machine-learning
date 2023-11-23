@@ -103,30 +103,31 @@ int main()
   // Create graph.
 
   // Define the input placeholder with shape [2, UnknownRank], where 'UnknownRank' means the first dimension is dynamic.
-  auto inputs = Placeholder(scope.WithOpName("inputs"), DT_FLOAT, Placeholder::Shape({input_units, UnknownRank}));
+  auto inputs = Placeholder(scope.WithOpName("Inputs"), DT_FLOAT, Placeholder::Shape({input_units, UnknownRank}));
   debug_show("inputs", inputs);
 
   // Define the labels placeholder with shape [UnknownRank], where 'UnknownRank' means the dimension is dynamic.
-  auto labels = Placeholder(scope.WithOpName("labels"), DT_FLOAT, Placeholder::Shape({UnknownRank}));
+  auto labels = Placeholder(scope.WithOpName("Labels"), DT_FLOAT, Placeholder::Shape({UnknownRank}));
   debug_show("labels", labels);
 
   // Define a weights_bias matrix.
-  auto weights_bias = Variable(scope, {output_units, input_units + 1}, DT_FLOAT);
+  auto weights_bias = Variable(scope.WithOpName("Weights"), {output_units, input_units + 1}, DT_FLOAT);
 
   //---------------------
   // Initialization
 
   // Initialization of the weights and bias.
-  run_operations.push_back(Assign(scope, weights_bias, RandomNormal(scope, {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(1))).operation);
+  run_operations.push_back(Assign(scope.WithOpName("assignW"), weights_bias,
+        RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(1))).operation);
   debug_show("weights_bias", weights_bias);
 
   // Append a 1 to all inputs.
-  auto batch_size = Slice(scope, Shape(scope, inputs), {1}, {1});
-  auto inputs_1 = Concat(scope, {Input(inputs), ExpandDims(scope, Fill(scope, batch_size, 1.0f), 0)}, 0);
+  auto batch_size = Slice(scope.WithOpName("BatchSize"), Shape(scope, inputs), {1}, {1});
+  auto inputs_1 = Concat(scope.WithOpName("Inputs1"), {Input(inputs), ExpandDims(scope, Fill(scope, batch_size, 1.0f), 0)}, 0);
   debug_show("inputs_1", inputs_1);
 
   // Divide alpha by batch_size for use during backpropagation.
-  auto learning_rate = Div(scope, alpha, Cast(scope, batch_size, DT_FLOAT));
+  auto learning_rate = Div(scope.WithOpName("Rate"), alpha, Cast(scope, batch_size, DT_FLOAT));
   debug_show("learning_rate", learning_rate);
 
   //---------------------
@@ -137,12 +138,12 @@ int main()
   debug_show("outputs", outputs);
 
   // Calculate the difference between the outputs and the targets.
-  auto residual = Subtract(scope, outputs, labels);     // Shape: [output_units x batch_size]
+  auto residual = Subtract(scope.WithOpName("Residual"), outputs, labels);     // Shape: [output_units x batch_size]
 
   // The loss function is not really used.
   {
     // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
-    auto loss = ReduceMean(scope, Square(scope, residual), {0});
+    auto loss = ReduceMean(scope.WithOpName("Loss"), Square(scope, residual), {0});
     debug_show("loss", loss);
   }
 
@@ -165,7 +166,7 @@ int main()
   //
   // where s runs over all the samples in the batch.
   //
-  auto xi_1 = Multiply(scope, 2.f, residual);   // Shape: [output_units x batch_size]
+  auto xi_1 = Multiply(scope.WithOpName("Xi_1"), 2.f, residual);   // Shape: [output_units x batch_size]
   debug_show("xi_1", xi_1);
 
   // Calculate delta as xi_1 times the derivative of the activation function.
@@ -184,7 +185,7 @@ int main()
   // where s runs over all the samples in the batch.
   //
   auto derivative_activation = Multiply(scope, outputs, Sub(scope, 1.f, outputs));
-  auto delta = Multiply(scope, xi_1, derivative_activation);      // Shape: [output_units x batch_size]
+  auto delta = Multiply(scope.WithOpName("Delta"), xi_1, derivative_activation);      // Shape: [output_units x batch_size]
   debug_show("delta", delta);
 
   // Calculate xi_0. The README has ξₗᵢ = \sum_{k=0}^{Mₗ-1}(δₗₖ wₖᵢ).
@@ -202,9 +203,9 @@ int main()
   //    Gᵢⱼ = \sum_{s=0}^{batch_size-1}(δᵢₛ xⱼₛ) = δ×Xᵀ
   //    wᵢⱼ' = wᵢⱼ - (α / batch_size) Gᵢⱼ
   //
-  auto gradient = MatMul(scope, delta, Transpose(scope, inputs_1, {1, 0}));
+  auto gradient = MatMul(scope.WithOpName("bsG"), delta, Transpose(scope, inputs_1, {1, 0}));
   debug_show("gradient", gradient);
-  auto dg = Multiply(scope, learning_rate, gradient);
+  auto dg = Multiply(scope.WithOpName("alphaG"), learning_rate, gradient);
   debug_show("dg", dg);
 
   // Update weights_bias.
