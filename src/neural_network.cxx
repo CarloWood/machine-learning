@@ -52,13 +52,27 @@ class DebugShow
   void operator()(Scope const& scope, std::string label, Output const& output)
   {
     labels_.push_back(label);
-    fetch_outputs_.push_back(Identity(scope, output));
+    fetch_outputs_.push_back(Identity(scope.WithOpName(label.c_str()), output));
   }
 
-  void dump() const
+  void dump()
   {
     for (int i = 0; i < labels_.size(); ++i)
       std::cout << labels_[i] << ": " << outputs_[i].DebugString(40) << std::endl;
+    outputs_.clear();
+  }
+
+  void remove(std::string label)
+  {
+    for (int i = 0; i < labels_.size(); ++i)
+    {
+      if (labels_[i] == label)
+      {
+        labels_.erase(labels_.begin() + i);
+        fetch_outputs_.erase(fetch_outputs_.begin() + i);
+        return;
+      }
+    }
   }
 };
 
@@ -97,7 +111,7 @@ int main()
   constexpr int input_units = 2;
   constexpr int output_units = 1;
   constexpr int UnknownRank = -1;       // Dynamic batch size.
-  constexpr float alpha = 0.01;
+  constexpr float alpha = 1;
 
   //---------------------------------------------------------------------------
   // Create graph.
@@ -265,4 +279,23 @@ int main()
 
   //---------------------------------------------------------------------------
   // Training.
+
+  debug_show.remove("inputs");
+  debug_show.remove("labels");
+  debug_show.remove("inputs_1");
+  debug_show.remove("learning_rate");
+  debug_show.remove("xi_1");
+  debug_show.remove("delta");
+  debug_show.remove("gradient");
+
+  debug_show.remove("loss");
+  debug_show.remove("weights_bias");
+  debug_show.remove("dg");
+
+  for (int n = 0; n < 1000000; ++n)
+  {
+    // Run the session with the feed and debug fetches.
+    TF_CHECK_OK(session.Run(inputs_feed, debug_show.fetch_outputs(), debug_show.outputs()));
+    debug_show.dump();
+  }
 }
