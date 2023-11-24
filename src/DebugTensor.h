@@ -7,13 +7,15 @@
 #include <functional>
 #include <iostream>
 
+using FloatType = float;
+
 template<int d_>
 class Tensor
 {
  public:
   using Index = std::array<int, d_>;    // For example if d=3: i,j,k
   using Shape = Index;                  // Same type :/.
-  using Flat = std::vector<double>;
+  using Flat = std::vector<FloatType>;
 
  private:
   Shape shape_;                         // For example, N x M x K where 0 <= i < N, 0 <= j < M, 0 <= k < K.
@@ -41,18 +43,18 @@ class Tensor
 
  public:
   template<int d = d_, typename std::enable_if<d == 0, int>::type = 0>
-  Tensor(double value = 0.0) : flat_(1, value) { }
+  Tensor(FloatType value = 0) : flat_(1, value) { }
 
-  Tensor(Shape shape) : shape_(shape), flat_(calc_size(d_), 0.0) { assert(!flat_.empty()); }
+  Tensor(Shape shape, FloatType value = 0) : shape_(shape), flat_(calc_size(d_), value) { assert(!flat_.empty()); }
 
-  double& operator[](Index const& index) { return flat_[index2fi(index)]; }
-  double operator[](Index const& index) const { return flat_[index2fi(index)]; }
-
-  template<typename... Args>
-  double& operator()(Args&&... args) { return flat_[index2fi({args...})]; }
+  FloatType& operator[](Index const& index) { return flat_[index2fi(index)]; }
+  FloatType operator[](Index const& index) const { return flat_[index2fi(index)]; }
 
   template<typename... Args>
-  double operator()(Args&&... args) const { return flat_[index2fi({args...})]; }
+  FloatType& operator()(Args&&... args) { return flat_[index2fi({args...})]; }
+
+  template<typename... Args>
+  FloatType operator()(Args&&... args) const { return flat_[index2fi({args...})]; }
 
   Tensor& operator+=(Tensor const& tensor)
   {
@@ -103,19 +105,35 @@ class Tensor
   Flat& flat() { return flat_; }
   Flat const& flat() const { return flat_; }
 
-  // Append one element to the last dimension.
-  // I.e. [AxBxCx...xKxL] --> [AxBxCx...xKx(L+1)] having appended a [AxBxCx...xK].
-  Tensor& append(Tensor<d_ - 1> const& t)
+  // Append one element to the dimension dim.
+  // I.e. [AxBxCx...xLx...xK] --> [AxBxCx...x(L+1)x...xK] having appended a [AxBxCx...xK].
+  Tensor& append(int dim, Tensor<d_ - 1> const& t)
   {
 #ifndef NDEBUG
     // Check that AxBxCx...xK are the same.
-    for (int d = 0; d < d_ - 1; ++d)
-      assert(shape_[d] == t.shape(d));
+    int dt = 0;
+    for (int d = 0; d < d_; ++d)
+    {
+      if (d == dim)
+        continue;
+      assert(shape_[d] == t.shape(dt++));
+    }
 #endif
-    shape_[d_ - 1]++;
-    for (int fi = 0; fi < t.flat().size(); ++fi)
-      flat_.push_back(t.flat()[fi]);
-
+    // Calculate 'AxBxCx...' (all the way up to but not including L)
+    int appendsize = 1;
+    for (int d = 0; d < dim; ++d)
+      appendsize *= shape_[d];
+    int blocksize = appendsize * shape_[dim];
+    Flat::const_iterator ti = t.flat().begin();
+    shape_[dim]++;
+    Flat result;
+    for (Flat::const_iterator self = flat_.begin(); self != flat_.end(); self += blocksize)
+    {
+      result.insert(result.end(), self, self + blocksize);
+      result.insert(result.end(), ti, ti + appendsize);
+      ti += appendsize;
+    }
+    flat_.swap(result);
     return *this;
   }
 
@@ -181,7 +199,7 @@ Tensor<d1 + d2 - 2> contract(Tensor<d1> const& tensor1, Tensor<d2> const& tensor
   for (typename Tensor<d2>::Index i2{}; !at_end<d2>(i2); tensor2.next_skip(i2, m2))
     for (typename Tensor<d1>::Index i1{}; !at_end<d1>(i1); tensor1.next_skip(i1, m1))
     {
-      double sum = 0.0;
+      FloatType sum = 0;
 //      std::cout << "Setting sum to 0\n";
       for (int dd = 0; dd < tensor1.shape(m1); ++dd)
       {
@@ -201,12 +219,12 @@ using Matrix = Tensor<2>;
 using Vector = Tensor<1>;
 using Scalar = Tensor<0>;
 
-static constexpr double sigmoid(double v)
+static constexpr FloatType sigmoid(FloatType v)
 {
-  return 1.0 / (1.0 + std::exp(-v));
+  return FloatType{1} / (FloatType{1} + std::exp(-v));
 }
 
-static constexpr double square(double x)
+static constexpr FloatType square(FloatType x)
 {
   return x * x;
 }
@@ -214,10 +232,10 @@ static constexpr double square(double x)
 class Function
 {
  private:
-  std::function<double (double)> a_;
+  std::function<FloatType (FloatType)> a_;
 
  public:
-  Function(std::function<double (double)> a) : a_(a) { }
+  Function(std::function<FloatType (FloatType)> a) : a_(a) { }
 
   template<int d_>
   Tensor<d_> operator()(Tensor<d_> const& tensor) const
@@ -231,19 +249,25 @@ class Function
   }
 };
 
-static double mse(Vector const& outputs, Vector const& targets)
+static Vector mse(Matrix const& outputs, Matrix const& targets)
 {
   int M = outputs.shape()[0];
+  int batch_size = outputs.shape()[1];
   Function sqr(square);
   auto squares = sqr(outputs - targets);
-  double sum = 0;
-  for (int i = 0; i < M; ++i)
-    sum += squares(i);
-  return sum / M;
+  Vector result{{batch_size}};
+  for (int s = 0; s < batch_size; ++s)
+  {
+    FloatType sum = 0;
+    for (int i = 0; i < M; ++i)
+      sum += squares(i, s);
+    result(s) = sum / M;
+  }
+  return result;
 }
 
-static Vector derivative_mse(Vector const& outputs, Vector const& targets)
+static Matrix derivative_mse(Matrix const& outputs, Matrix const& targets)
 {
   int M = outputs.shape()[0];
-  return Function([M](double in){ return 2 * in / M; })(outputs - targets);
+  return Function([M](FloatType in){ return 2 * in / M; })(outputs - targets);
 }

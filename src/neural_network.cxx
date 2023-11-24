@@ -78,6 +78,8 @@ class DebugShow
 
 int main()
 {
+  std::cout.precision(9);
+
   // Define the scope.
   Scope scope = Scope::NewRootScope();
   DebugShow debug_show(scope);
@@ -111,7 +113,7 @@ int main()
   constexpr int input_units = 2;
   constexpr int output_units = 1;
   constexpr int UnknownRank = -1;       // Dynamic batch size.
-  constexpr float alpha = 1;
+  constexpr float alpha = 0.5;
 
   //---------------------------------------------------------------------------
   // Create graph.
@@ -223,8 +225,8 @@ int main()
   debug_show("dg", dg);
 
   // Update weights_bias.
-  auto update_weights_bias = AssignSub(scope, weights_bias, dg, AssignSub::Attrs().UseLocking(true)).operation;
-  debug_show(scope.WithControlDependencies({update_weights_bias}), "weights_bias", weights_bias);
+  auto update_weights_bias_op = AssignSub(scope, weights_bias, dg, AssignSub::Attrs().UseLocking(true)).operation;
+  auto updated_weights_bias = Identity(scope.WithControlDependencies({update_weights_bias_op}), weights_bias);
 
   // Write the graph to a file.
   dump_graph(scope, "neural_network");
@@ -235,7 +237,7 @@ int main()
   // Create a random number generator.
   std::default_random_engine generator;
   generator.seed(1);
-  std::uniform_real_distribution<float> distribution(0.001, 0.1);
+  std::uniform_real_distribution<float> distribution(0.1, 1.0);
 
   std::vector<float> labels_data = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
   int64 const number_of_data_points = labels_data.size();
@@ -289,13 +291,33 @@ int main()
   debug_show.remove("gradient");
 
   debug_show.remove("loss");
-  debug_show.remove("weights_bias");
   debug_show.remove("dg");
 
-  for (int n = 0; n < 1000000; ++n)
+  ClientSession::FeedType inputs_feed2 = {
+    {labels, labels_tensor}
+  };
+  std::vector<Output> fetch_outputs = { updated_weights_bias, outputs };
+  for (int n = 0; n < 5; ++n)
   {
-    // Run the session with the feed and debug fetches.
-    TF_CHECK_OK(session.Run(inputs_feed, debug_show.fetch_outputs(), debug_show.outputs()));
-    debug_show.dump();
+    std::vector<Tensor> outputs;
+    TF_CHECK_OK(session.Run(inputs_feed2, fetch_outputs, &outputs));
+    //if (n % 100 == 0)
+    {
+      auto tensor_map0 = outputs[0].tensor<float, 2>();
+      float xm = tensor_map0(0, 0);
+      float ym = tensor_map0(0, 1);
+      float om = tensor_map0(0, 2);
+      std::cout << "y = " << (-xm / ym) << " * x - " << (om / ym) << std::endl;
+      std::cout << "weights_bias = [" << xm << ", " << ym << ", " << om << "]" << std::endl;
+      auto tensor_map1 = outputs[1].tensor<float, 2>();
+      std::cout << "outputs = [";
+      char const* sep = "";
+      for (int s = 0; s < 9; ++s)
+      {
+        std::cout << sep << tensor_map1(0, s);
+        sep = ", ";
+      }
+      std::cout << "]" << std::endl;
+    }
   }
 }
