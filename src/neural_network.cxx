@@ -3,6 +3,7 @@
 #include <tensorflow/core/framework/tensor.h>
 #include <fstream>
 #include <random>
+#include <format>
 
 using namespace tensorflow;
 using namespace tensorflow::ops;
@@ -35,6 +36,8 @@ class DebugShow
   Scope& scope_;
   std::vector<std::string> labels_;
   std::vector<Output> fetch_outputs_;
+  std::vector<std::string> inactive_labels_;
+  std::vector<Output> inactive_fetch_outputs_;
   std::vector<Tensor> outputs_;
 
  public:
@@ -68,13 +71,67 @@ class DebugShow
     {
       if (labels_[i] == label)
       {
+        inactive_labels_.push_back(label);
+        inactive_fetch_outputs_.push_back(fetch_outputs_[i]);
         labels_.erase(labels_.begin() + i);
         fetch_outputs_.erase(fetch_outputs_.begin() + i);
         return;
       }
     }
   }
+
+  void add(std::string label)
+  {
+    for (int i = 0; i < inactive_labels_.size(); ++i)
+    {
+      if (inactive_labels_[i] == label)
+      {
+        labels_.push_back(label);
+        fetch_outputs_.push_back(inactive_fetch_outputs_[i]);
+        inactive_labels_.erase(inactive_labels_.begin() + i);
+        inactive_fetch_outputs_.erase(inactive_fetch_outputs_.begin() + i);
+        return;
+      }
+    }
+  }
+
+  void clear()
+  {
+    for (int i = 0; i < labels_.size(); ++i)
+    {
+      inactive_labels_.push_back(labels_[i]);
+      inactive_fetch_outputs_.push_back(fetch_outputs_[i]);
+    }
+    labels_.clear();
+    fetch_outputs_.clear();
+  }
 };
+
+bool AreTensorsEqual(tensorflow::Tensor const& tensor_a, tensorflow::Tensor const& tensor_b)
+{
+  // Check if shapes are the same.
+  if (!tensor_a.shape().IsSameSize(tensor_b.shape()))
+    return false;
+
+  // Assuming tensors are of type float
+  auto flat_a = tensor_a.flat<float>();
+  auto flat_b = tensor_b.flat<float>();
+
+  for (int i = 0; i < flat_a.size(); ++i)
+    if (flat_a(i) != flat_b(i))
+      return false;
+
+  return true;
+}
+
+void AssertEqual(Scope const& scope, tensorflow::Tensor const& tensor_a, tensorflow::Tensor const& tensor_b)
+{
+  if (!AreTensorsEqual(tensor_a, tensor_b))
+  {
+    std::cerr << "Error: Tensors are not equal, aborting!";
+    Abort(scope, Abort::Attrs().ErrorMsg("Error: Tensors are not equal, aborting!"));
+  }
+}
 
 int main()
 {
@@ -83,7 +140,7 @@ int main()
   // Define the scope.
   Scope scope = Scope::NewRootScope();
   DebugShow debug_show(scope);
-  std::vector<Operation> run_operations;
+  std::vector<Operation> initialization_operations;
 
   //         .---.
   // x₀ ---> |   | ---> [tanh activation] ---> { >0 --> label = 1.
@@ -129,17 +186,37 @@ int main()
   // Define a weights_bias matrix.
   auto weights_bias = Variable(scope.WithOpName("Weights"), {output_units, input_units + 1}, DT_FLOAT);
 
+  // Define a persistent inputs_1 Variable.
+  auto inputs_1 = Variable(scope.WithOpName("Inputs1"), {input_units + 1, 9}, DT_FLOAT);
+
+  // Define a persistent variable for the batch_size, so we don't have to feed inputs
+  // every epoch just to get the batch size from it.
+  auto batch_size = Variable(scope.WithOpName("BatchSize"), {1}, DT_INT32);
+
   //---------------------
   // Initialization
 
   // Initialization of the weights and bias.
-  run_operations.push_back(Assign(scope.WithOpName("assignW"), weights_bias,
+  initialization_operations.push_back(Assign(scope.WithOpName("assignW"), weights_bias,
         RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(1))).operation);
   debug_show("weights_bias", weights_bias);
 
+  // Extract and save the batch size.
+  auto batch_size_tensor = Slice(scope.WithOpName("BatchSizeTensor"), Shape(scope, inputs), {1}, {1});
+  debug_show("batch_size_tensor", batch_size_tensor);
+
+  // Initialize the variable batch_size with the actual batch size from inputs.
+  Operation batch_size_assign_op = Assign(scope, batch_size, batch_size_tensor).operation;
+  initialization_operations.push_back(batch_size_assign_op);
+  debug_show(scope.WithControlDependencies({batch_size_assign_op}), "batch_size", batch_size);
+
   // Append a 1 to all inputs.
-  auto batch_size = Slice(scope.WithOpName("BatchSize"), Shape(scope, inputs), {1}, {1});
-  auto inputs_1 = Concat(scope.WithOpName("Inputs1"), {Input(inputs), ExpandDims(scope, Fill(scope, batch_size, 1.0f), 0)}, 0);
+  auto inputs_1_tensor = Concat(scope.WithOpName("Inputs1Tensor"), {Input(inputs),
+      ExpandDims(scope, Fill(scope, batch_size_tensor, 1.0f), 0)}, 0);
+  debug_show("inputs_1_tensor", inputs_1_tensor);
+
+  // Initialization of inputs_1 with the value corresponding to inputs.
+  initialization_operations.push_back(Assign(scope, inputs_1, inputs_1_tensor).operation);
   debug_show("inputs_1", inputs_1);
 
   // Divide alpha by batch_size for use during backpropagation.
@@ -156,12 +233,10 @@ int main()
   // Calculate the difference between the outputs and the targets.
   auto residual = Subtract(scope.WithOpName("Residual"), outputs, labels);     // Shape: [output_units x batch_size]
 
-  // The loss function is not really used.
-  {
-    // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
-    auto loss = ReduceMean(scope.WithOpName("Loss"), Square(scope, residual), {0});
-    debug_show("loss", loss);
-  }
+  // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
+  // The loss function is not really used, except for printing.
+  auto loss = ReduceMean(scope.WithOpName("Loss"), Square(scope, residual), {0});
+  debug_show("loss", loss);
 
   //---------------------
   // Backward propagation.
@@ -266,43 +341,31 @@ int main()
 
   ClientSession session(scope);
 
-  // Fill weights and biases with random initial values.
-  TF_CHECK_OK(session.Run({}, {}, run_operations, nullptr));
+  // Fill weights_bias with random initial values.
+  // Fill inputs_1 with inputs + ones.
+  TF_CHECK_OK(session.Run(ClientSession::FeedType{{inputs, inputs_tensor}}, {}, initialization_operations, nullptr));
 
-  // Associate the placeholder with the input data.
-  ClientSession::FeedType inputs_feed = {
-    {inputs, inputs_tensor},
-    {labels, labels_tensor}
-  };
-
-  // Run the session with the feed and debug fetches.
-  TF_CHECK_OK(session.Run(inputs_feed, debug_show.fetch_outputs(), debug_show.outputs()));
+  TF_CHECK_OK(session.Run(ClientSession::FeedType{{inputs, inputs_tensor}, {labels, labels_tensor}},
+        debug_show.fetch_outputs(), {}, debug_show.outputs()));
   debug_show.dump();
+  debug_show.clear();
 
   //---------------------------------------------------------------------------
   // Training.
 
-  debug_show.remove("inputs");
-  debug_show.remove("labels");
-  debug_show.remove("inputs_1");
-  debug_show.remove("learning_rate");
-  debug_show.remove("xi_1");
-  debug_show.remove("delta");
-  debug_show.remove("gradient");
+  // Associate remaining placeholder with the input data.
+  ClientSession::FeedType inputs_feed = { {labels, labels_tensor} };
+  std::vector<Output> fetch_outputs1 = { updated_weights_bias };
+  std::vector<Output> fetch_outputs2 = { updated_weights_bias, outputs, loss };
 
-  debug_show.remove("loss");
-  debug_show.remove("dg");
-
-  ClientSession::FeedType inputs_feed2 = {
-    {labels, labels_tensor}
-  };
-  std::vector<Output> fetch_outputs = { updated_weights_bias, outputs };
-  for (int n = 0; n < 5; ++n)
+  for (int n = 0; n < 10000000; ++n)
   {
     std::vector<Tensor> outputs;
-    TF_CHECK_OK(session.Run(inputs_feed2, fetch_outputs, &outputs));
-    //if (n % 100 == 0)
+    if (n % 1000 != 0)
+      TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs1, &outputs));
+    else
     {
+      TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs2, &outputs));
       auto tensor_map0 = outputs[0].tensor<float, 2>();
       float xm = tensor_map0(0, 0);
       float ym = tensor_map0(0, 1);
@@ -315,6 +378,15 @@ int main()
       for (int s = 0; s < 9; ++s)
       {
         std::cout << sep << tensor_map1(0, s);
+        sep = ", ";
+      }
+      std::cout << "]" << std::endl;
+      auto tensor_map2 = outputs[2].tensor<float, 1>();
+      std::cout << "loss = [";
+      sep = "";
+      for (int s = 0; s < 9; ++s)
+      {
+        std::cout << sep << std::format("{: >10.7f}", tensor_map2(s));
         sep = ", ";
       }
       std::cout << "]" << std::endl;
