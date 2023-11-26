@@ -1,3 +1,4 @@
+#include "gnuplot_i.h"
 #include <tensorflow/cc/client/client_session.h>
 #include <tensorflow/cc/ops/standard_ops.h>
 #include <tensorflow/core/framework/tensor.h>
@@ -133,9 +134,24 @@ void AssertEqual(Scope const& scope, tensorflow::Tensor const& tensor_a, tensorf
   }
 }
 
+void draw_points(gnuplot_ctrl* h1, std::array<std::vector<double>, 2> const& xp, std::array<std::vector<double>, 2> const& yp)
+{
+  gnuplot_append_style(h1, " pointtype 7 pointsize 2 linewidth 2 linecolor 'red'");
+  gnuplot_plot_coordinates(h1, xp[0].data(), yp[0].data(), xp[0].size(), "inputs0");
+  gnuplot_setstyle(h1, "points");
+  gnuplot_append_style(h1, " pointtype 4 pointsize 2 linewidth 2 linecolor 'green'");
+  gnuplot_plot_coordinates(h1, xp[1].data(), yp[1].data(), xp[1].size(), "inputs1");
+  gnuplot_cmd(h1, "unset key");
+  gnuplot_cmd(h1, "set yrange [-15:20]");
+  gnuplot_setstyle(h1, "points");
+}
+
 int main()
 {
   std::cout.precision(9);
+
+  // GNU plot handle.
+  gnuplot_ctrl* h1 = gnuplot_init();
 
   // Define the scope.
   Scope scope = Scope::NewRootScope();
@@ -170,7 +186,7 @@ int main()
   constexpr int input_units = 2;
   constexpr int output_units = 1;
   constexpr int UnknownRank = -1;       // Dynamic batch size.
-  constexpr float alpha = 0.5;
+  constexpr float alpha = 0.1;
 
   //---------------------------------------------------------------------------
   // Create graph.
@@ -198,7 +214,7 @@ int main()
 
   // Initialization of the weights and bias.
   initialization_operations.push_back(Assign(scope.WithOpName("assignW"), weights_bias,
-        RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(1))).operation);
+        RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT /*, RandomNormal::Attrs().Seed(1)*/)).operation);
   debug_show("weights_bias", weights_bias);
 
   // Extract and save the batch size.
@@ -311,7 +327,7 @@ int main()
 
   // Create a random number generator.
   std::default_random_engine generator;
-  generator.seed(1);
+//  generator.seed(1);
   std::uniform_real_distribution<float> distribution(0.1, 1.0);
 
   std::vector<float> labels_data = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
@@ -336,6 +352,19 @@ int main()
   std::cout << "labels_tensor is now " << labels_tensor.DebugString(number_of_data_points) << std::endl;
   std::cout << "inputs_tensor is now " << inputs_tensor.DebugString(2 * number_of_data_points) << std::endl;
 
+  // Plot the input data points.
+  std::array<std::vector<double>, 2> xp;
+  std::array<std::vector<double>, 2> yp;
+  for (int i = 0; i < number_of_data_points; ++i)
+  {
+    assert(labels_data[i] == 0 || labels_data[i] == 1);
+    xp[labels_data[i]].push_back(tensor_map(0, i));
+    yp[labels_data[i]].push_back(tensor_map(1, i));
+  }
+  assert(xp[0].size() + xp[1].size() == number_of_data_points);
+
+  draw_points(h1, xp, yp);
+
   //---------------------------------------------------------------------------
   // Running.
 
@@ -358,10 +387,11 @@ int main()
   std::vector<Output> fetch_outputs1 = { updated_weights_bias };
   std::vector<Output> fetch_outputs2 = { updated_weights_bias, outputs, loss };
 
-  for (int n = 0; n < 10000000; ++n)
+  int plots = 0;
+  for (int n = 0; n < 100000; ++n)
   {
     std::vector<Tensor> outputs;
-    if (n % 1000 != 0)
+    if (n % 10 != 0)
       TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs1, &outputs));
     else
     {
@@ -374,6 +404,10 @@ int main()
       std::cout << "weights_bias = [" << xm << ", " << ym << ", " << om << "]" << std::endl;
       auto tensor_map1 = outputs[1].tensor<float, 2>();
       std::cout << "outputs = [";
+      std::ostringstream function_name;
+      function_name << "f" << n << "(x)";
+      std::ostringstream equation;
+      equation << function_name.str() << " = " << (-xm / ym) << " * x - " << (om / ym) << '\n';
       char const* sep = "";
       for (int s = 0; s < 9; ++s)
       {
@@ -390,6 +424,18 @@ int main()
         sep = ", ";
       }
       std::cout << "]" << std::endl;
+      if (plots++ == 10)
+      {
+        gnuplot_resetplot(h1);
+        plots = 0;
+        draw_points(h1, xp, yp);
+      }
+      gnuplot_cmd(h1, equation.str().c_str());
+      gnuplot_plot_equation(h1, function_name.str().c_str(), ("epoch " + std::to_string(n)).c_str());
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
+
+  // Close plot window.
+  gnuplot_close(h1);
 }

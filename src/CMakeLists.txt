@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.12...3.27)
 
 find_package(Threads REQUIRED)
 find_package(TensorflowCC REQUIRED)
-#find_package(CUDA)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(OPENMP REQUIRED openmp)
@@ -31,3 +30,7 @@ add_test(intro-basic-io basic-io)
 
 # My stuff.
 add_test(neural_network neural_network)
+target_link_libraries(neural_network gnuplot_i::gnuplot_i)
+
+add_executable(plottest plottest.cpp)
+target_link_libraries(plottest gnuplot_i::gnuplot_i)

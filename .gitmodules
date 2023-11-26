@@ -6,3 +6,6 @@
 	path = cwds
 	url = https://github.com/CarloWood/cwds.git
 	branch = master
+[submodule "gnuplot_i"]
+	path = gnuplot_i
+	url = github-carlo:CarloWood/gnuplot_i.git

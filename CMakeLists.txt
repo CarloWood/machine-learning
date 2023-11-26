@@ -23,4 +23,5 @@ endif()
 
 include(AICxxSubmodules)
 
+add_subdirectory(gnuplot_i)
 add_subdirectory(src)
