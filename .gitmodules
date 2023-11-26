@@ -8,4 +8,5 @@
 	branch = master
 [submodule "gnuplot_i"]
 	path = gnuplot_i
-	url = github-carlo:CarloWood/gnuplot_i.git
+	url = https://github.com/CarloWood/gnuplot_i.git
+	branch = master
