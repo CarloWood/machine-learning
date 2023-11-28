@@ -1,7 +1,6 @@
 #include "gnuplot_i.h"
-#include <tensorflow/cc/client/client_session.h>
-#include <tensorflow/cc/ops/standard_ops.h>
-#include <tensorflow/core/framework/tensor.h>
+#include "DebugShow.h"
+#include "dump_graph.h"
 #include <fstream>
 #include <random>
 #include <format>
@@ -9,104 +8,10 @@
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
-void dump_graph(Scope const& scope, std::string name)
-{
-  // Create a GraphDef object to hold the graph.
-  GraphDef graph_def;
-  // Use the scope to serialize the graph.
-  Status s = scope.ToGraphDef(&graph_def);
-
-  // Write the GraphDef to a file.
-  std::string filename = name + ".pb";
-  std::ofstream file(filename , std::ios::out | std::ios::binary);
-  if (!graph_def.SerializeToOstream(&file))
-    std::cerr << "Failed to write graph to " << filename << "." << std::endl;
-  else
-    std::cout << "Output written to \"" << filename << "\"; "
-      "run: `python tb.py " << filename << "` to create logs/ and then `tensorboard --logdir=logs` to view.\n";
-}
-
 float x1(float x0)
 {
   return 2.5f * x0 - 4.3f;
 }
-
-class DebugShow
-{
- private:
-  Scope& scope_;
-  std::vector<std::string> labels_;
-  std::vector<Output> fetch_outputs_;
-  std::vector<std::string> inactive_labels_;
-  std::vector<Output> inactive_fetch_outputs_;
-  std::vector<Tensor> outputs_;
-
- public:
-  DebugShow(Scope& scope) : scope_(scope) { }
-
-  std::vector<Output> const& fetch_outputs() const { return fetch_outputs_; }
-  std::vector<Tensor>* outputs() { return &outputs_; }
-
-  void operator()(std::string label, Output const& output)
-  {
-    labels_.push_back(label);
-    fetch_outputs_.push_back(Identity(scope_, output));
-  }
-
-  void operator()(Scope const& scope, std::string label, Output const& output)
-  {
-    labels_.push_back(label);
-    fetch_outputs_.push_back(Identity(scope.WithOpName(label.c_str()), output));
-  }
-
-  void dump()
-  {
-    for (int i = 0; i < labels_.size(); ++i)
-      std::cout << labels_[i] << ": " << outputs_[i].DebugString(40) << std::endl;
-    outputs_.clear();
-  }
-
-  void remove(std::string label)
-  {
-    for (int i = 0; i < labels_.size(); ++i)
-    {
-      if (labels_[i] == label)
-      {
-        inactive_labels_.push_back(label);
-        inactive_fetch_outputs_.push_back(fetch_outputs_[i]);
-        labels_.erase(labels_.begin() + i);
-        fetch_outputs_.erase(fetch_outputs_.begin() + i);
-        return;
-      }
-    }
-  }
-
-  void add(std::string label)
-  {
-    for (int i = 0; i < inactive_labels_.size(); ++i)
-    {
-      if (inactive_labels_[i] == label)
-      {
-        labels_.push_back(label);
-        fetch_outputs_.push_back(inactive_fetch_outputs_[i]);
-        inactive_labels_.erase(inactive_labels_.begin() + i);
-        inactive_fetch_outputs_.erase(inactive_fetch_outputs_.begin() + i);
-        return;
-      }
-    }
-  }
-
-  void clear()
-  {
-    for (int i = 0; i < labels_.size(); ++i)
-    {
-      inactive_labels_.push_back(labels_[i]);
-      inactive_fetch_outputs_.push_back(fetch_outputs_[i]);
-    }
-    labels_.clear();
-    fetch_outputs_.clear();
-  }
-};
 
 bool AreTensorsEqual(tensorflow::Tensor const& tensor_a, tensorflow::Tensor const& tensor_b)
 {
@@ -150,11 +55,22 @@ int main()
 {
   std::cout.precision(9);
 
+  std::random_device rd;
+  std::default_random_engine seed_generator(rd());
+
+  std::uniform_int_distribution<int> seed_distribution(0, 1000000000);
+  int seed1 = seed_distribution(seed_generator);
+  int seed2 = seed_distribution(seed_generator);
+
+//  seed1 = 508151945; seed2 = 970054351;
+
+  std::cout << "seed1 = " << seed1 << "; seed2 = " << seed2 << '\n';
+
   // GNU plot handle.
   gnuplot_ctrl* h1 = gnuplot_init();
 
   // Define the scope.
-  Scope scope = Scope::NewRootScope();
+  Scope scope = Scope::NewRootScope().ExitOnError();
   DebugShow debug_show(scope);
   std::vector<Operation> initialization_operations;
 
@@ -214,7 +130,7 @@ int main()
 
   // Initialization of the weights and bias.
   initialization_operations.push_back(Assign(scope.WithOpName("assignW"), weights_bias,
-        RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT /*, RandomNormal::Attrs().Seed(1)*/)).operation);
+        RandomNormal(scope.WithOpName("Rand"), {output_units, input_units + 1}, DT_FLOAT, RandomNormal::Attrs().Seed(seed1))).operation);
   debug_show("weights_bias", weights_bias);
 
   // Extract and save the batch size.
@@ -242,8 +158,56 @@ int main()
   //---------------------
   // Forward propagation.
 
+  // Because w₀₁ must be positive in order to uniquely define what is "above" and "below" the line,
+  // change the sign of W if w₀₁ is negative.
+  // First get W_01; Reshape returns a rank-2 1x1 matrix, reshape it to a rank-1 vector (can't reshape to a scalar directly).
+  auto W_01 = Reshape(scope, Slice(scope, weights_bias, {0, 1}, {1, 1}), {1});
+  // Create a rank-1 vector (of size 1) out of that, that contains true if W_01 is less than 0.
+  auto W_01_is_negative_rank1 = Less(scope, W_01, {0.0f});
+  // Now reduce this to a scalar, because Switch requires a scalar boolean as pred.
+  auto W_01_is_negative = ReduceAny(scope, W_01_is_negative_rank1, 0);
+  // Depending on the sign continue with either switch_op.output_false or switch_op.output_true.
+  auto switch_op = Switch(scope, weights_bias, W_01_is_negative);
+  // If switch_op.output_true was set, then W_01 is negative: negate all of weights_bias.
+  Output negated_weights_bias = Negate(scope, switch_op.output_true);
+  // Move the result into abs_weights_bias.
+  auto abs_weights_bias = Merge(scope, { switch_op.output_false, negated_weights_bias }).output;
+  // Update weights_bias with the possibly negated result.
+  auto update_weights_bias_op2 = Assign(scope, weights_bias, abs_weights_bias, Assign::Attrs().UseLocking(true)).operation;
+
   // Perform `weights_bias * inputs_1` and apply activation function.
-  auto outputs = Sigmoid(scope, MatMul(scope, weights_bias, inputs_1));
+  auto sum = MatMul(scope.WithControlDependencies({update_weights_bias_op2}), weights_bias, inputs_1);
+  //
+  // weights_bias = [ w₀₀  w₀₁  w₀₂ ], where w₀₂ is the bias.
+  //
+  //            ⎡ x₀   ⎤
+  // inputs_1 = ⎢ x₁ … ⎥
+  //            ⎣ 1    ⎦
+  //
+  // sum_s = w₀₀ x₀ + w₀₁ x₁ + w₀₂
+  //
+  // Point s=1: x₀ = 1, x₁ = -1.00969648  [label: 1 / green]
+  // Point s=2: x₀ = 2, x₁ = 0.565050364  [label: 0 / red]
+  //
+  // The correct line is x₁ = 2.5 x₀ - 4.3, thus point 1: x₀ = 1, x₁ = -1.8   [is above correct line]
+  //                                             point 2: x₀ = 2, x₁ = 0.7    [is below the correct line]
+  //
+  // We get stuck at:
+  //
+  // sum_s = -0.539493918 x₀ - 2.46913052 x₁ + 0.154095531
+  //
+  // which corresponds to the line: y = (-0.539493918 / 2.46913052) x + (0.154095531 / 2.46913052) = -0.218495504 x₀ + 0.062408823
+  // and thus corresponds to point 1: x₀ = 1, x₁ = -0.15608668   [thus x₁ = -1.00969648 is below this line]
+  //                         point 2: x₀ = 2, x₁ = -0.37458219   [thus x₁ = 0.565050364 is above this line]
+  //
+  // sum_₁ = -0.539493918 * 1 - 2.46913052 * -1.00969648 + 0.154095531 = 2.107674003
+  // sum_₂ = -0.539493918 * 2 - 2.46913052 * 0.565050364 + 0.154095531 = -2.320075404
+  //
+  // outputs_₁ = sigmoid(2.107674003) = 0.891646816
+  // outputs_₂ = sigmoid(-2.320075404) = 0.089473916
+
+  debug_show("sum", sum);
+  auto outputs = Sigmoid(scope, sum);
   debug_show("outputs", outputs);
 
   // Calculate the difference between the outputs and the targets.
@@ -316,7 +280,7 @@ int main()
   debug_show("dg", dg);
 
   // Update weights_bias.
-  auto update_weights_bias_op = AssignSub(scope, weights_bias, dg, AssignSub::Attrs().UseLocking(true)).operation;
+  auto update_weights_bias_op = AssignSub(scope.WithControlDependencies({update_weights_bias_op2}), weights_bias, dg, AssignSub::Attrs().UseLocking(true)).operation;
   auto updated_weights_bias = Identity(scope.WithControlDependencies({update_weights_bias_op}), weights_bias);
 
   // Write the graph to a file.
@@ -326,11 +290,14 @@ int main()
   // Fill training samples.
 
   // Create a random number generator.
-  std::default_random_engine generator;
-//  generator.seed(1);
-  std::uniform_real_distribution<float> distribution(0.1, 1.0);
+//  std::random_device rd;
+//  std::default_random_engine generator(rd());
+  std::default_random_engine generator(seed2);
+  std::uniform_real_distribution<float> weights_distribution(0.1, 1.0);
 
-  std::vector<float> labels_data = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
+  std::vector<float> labels_data; // = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
+  for (int i = 0; i < 9; ++i)
+    labels_data.push_back((weights_distribution(generator) > 0.55) ? 0.f : 1.f);
   int64 const number_of_data_points = labels_data.size();
 
   // Create a tensor with labels.
@@ -343,7 +310,9 @@ int main()
   for (int i = 0; i < number_of_data_points; ++i)
   {
     float x0 = i;
-    float delta_x1 = (labels_data[i] == 1 ? 1 : -1) * distribution(generator);
+    float rd = weights_distribution(generator);
+    float delta_x1 = ((labels_data[i] > 0.5) ? 1 : -1) * rd;    // 0 means below the line (red), 1 means above (green).
+    std::cout << "delta_x1 = " << delta_x1 << std::endl;
 
     tensor_map(0, i) = x0;
     tensor_map(1, i) = x1(x0) + delta_x1;
@@ -357,9 +326,10 @@ int main()
   std::array<std::vector<double>, 2> yp;
   for (int i = 0; i < number_of_data_points; ++i)
   {
-    assert(labels_data[i] == 0 || labels_data[i] == 1);
-    xp[labels_data[i]].push_back(tensor_map(0, i));
-    yp[labels_data[i]].push_back(tensor_map(1, i));
+    int index = std::round(labels_data[i]);
+    assert(index == 0 || index == 1);
+    xp[index].push_back(tensor_map(0, i));
+    yp[index].push_back(tensor_map(1, i));
   }
   assert(xp[0].size() + xp[1].size() == number_of_data_points);
 
@@ -377,7 +347,7 @@ int main()
   TF_CHECK_OK(session.Run(ClientSession::FeedType{{inputs, inputs_tensor}, {labels, labels_tensor}},
         debug_show.fetch_outputs(), {}, debug_show.outputs()));
   debug_show.dump();
-  debug_show.clear();
+//  debug_show.clear();
 
   //---------------------------------------------------------------------------
   // Training.
@@ -385,29 +355,37 @@ int main()
   // Associate remaining placeholder with the input data.
   ClientSession::FeedType inputs_feed = { {labels, labels_tensor} };
   std::vector<Output> fetch_outputs1 = { updated_weights_bias };
-  std::vector<Output> fetch_outputs2 = { updated_weights_bias, outputs, loss };
+  std::vector<Output> fetch_outputs2 = { updated_weights_bias, outputs, loss, residual };
 
   int plots = 0;
   for (int n = 0; n < 100000; ++n)
   {
     std::vector<Tensor> outputs;
-    if (n % 10 != 0)
+    if (n % 100 != 0)
       TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs1, &outputs));
     else
     {
+      std::cout << "seed1 = " << seed1 << "; seed2 = " << seed2 << '\n';
+//      debug_show.list();
+//      TF_CHECK_OK(session.Run(ClientSession::FeedType{{inputs, inputs_tensor}, {labels, labels_tensor}}, debug_show.fetch_outputs(), {}, debug_show.outputs()));
+//      debug_show.dump();
       TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs2, &outputs));
+//      Tensor const& wb = debug_show.outputs()->operator[](0);
       auto tensor_map0 = outputs[0].tensor<float, 2>();
+      if (!tensor_map0.data())
+        continue;
       float xm = tensor_map0(0, 0);
       float ym = tensor_map0(0, 1);
       float om = tensor_map0(0, 2);
       std::cout << "y = " << (-xm / ym) << " * x - " << (om / ym) << std::endl;
       std::cout << "weights_bias = [" << xm << ", " << ym << ", " << om << "]" << std::endl;
-      auto tensor_map1 = outputs[1].tensor<float, 2>();
-      std::cout << "outputs = [";
       std::ostringstream function_name;
       function_name << "f" << n << "(x)";
       std::ostringstream equation;
       equation << function_name.str() << " = " << (-xm / ym) << " * x - " << (om / ym) << '\n';
+#if 1
+      auto tensor_map1 = outputs[1].tensor<float, 2>();
+      std::cout << "outputs = [";
       char const* sep = "";
       for (int s = 0; s < 9; ++s)
       {
@@ -415,15 +393,33 @@ int main()
         sep = ", ";
       }
       std::cout << "]" << std::endl;
-      auto tensor_map2 = outputs[2].tensor<float, 1>();
+      auto loss_tensor_map = outputs[2].tensor<float, 1>();
       std::cout << "loss = [";
       sep = "";
       for (int s = 0; s < 9; ++s)
       {
-        std::cout << sep << std::format("{: >10.7f}", tensor_map2(s));
+        std::cout << sep << std::format("{: >10.7f}", loss_tensor_map(s));
         sep = ", ";
       }
       std::cout << "]" << std::endl;
+      std::cout << "labels = " << labels_tensor.DebugString(9) << std::endl;
+      std::cout << "residual = " << outputs[3].DebugString(9) << std::endl;
+      bool correct_prediction = true;
+      for (int s = 0; s < 9; ++s)
+      {
+        if (loss_tensor_map(s) >= 0.25f)
+        {
+          correct_prediction = false;
+          break;
+        }
+      }
+      if (correct_prediction)
+      {
+        std::cout << "Found correct prediction!" << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        break;
+      }
+#endif
       if (plots++ == 10)
       {
         gnuplot_resetplot(h1);
