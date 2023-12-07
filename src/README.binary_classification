@@ -1,0 +1,636 @@
+The problem statement
+=====================
+
+Consider a plane that is divided into two half planes by a line,
+where one half is red and the other half is green.
+
+This is the ideal picture and we have to find that line.
+
+However, our input data has errors in the x₁ coordinates of each (x₀,x₁) point;
+each point is vertically spread out according to a given probability distribution.
+
+We will be using (assuming) the [logistic distribution](https://en.wikipedia.org/wiki/Logistic_distribution),
+which is much like the normal distribution just a bit more forgiving for outliers.
+
+The logistic distribution is given by
+
+                 e(t;μ,s)
+  f(t;μ,s) = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+              s (1 + e(t;μ,s))²
+
+where
+              (-(t-μ)/s)
+  e(t;μ,s) = e
+
+Let the equation of the line be given by
+
+  x₁ₕ = γ x₀ₕ + β
+
+where the h subscript stands for 'half'. After all, on this
+line half of the points will be red and half will be green
+(symmetry argument).
+
+
+Probability density per color
+=============================
+
+We can now calculate the probability density of green points (f_green)
+at the coordinates x₀,x₁. It will be a convolution product between the
+chance that there was a green point before blurring at (x₀,y) times the
+logistic distribution function around that point (f(y;0,s)).
+
+  f_green(x₀,x₁) = (H ∗ f)(x₀,x₁;s)
+
+where H(y) is the (piecewise constant) heaviside step function,
+0 for y < 0, 1/2 for y = 0 and 1 for y > 0. It represents the
+chance that a points was green at y before blurring; in other
+words y here represents the distance that the starting point is
+above the half-line. Note that we should use μ=0 for the
+logistic distribution function f here.
+
+Writing out this convolution product as an integral then gives
+                    ∞
+                   ⌠
+  f_green(x₀,x₁) = ⎮ H(y - (γ x₀ + β)) f(x₁-y;0,s) dy =
+                   ⌡
+                 -∞
+
+                    ∞      (-(x₁-y)/s)
+                   ⌠      e                1
+                 = ⎮  ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼  ⎼ dy =
+                   ⌡  ⎛     (-(x₁-y)/s)⎞2  s
+            γ x₀ + β  ⎝1 + e           ⎠ 
+
+
+Let u = (x₁-y)/s, which means dy = -s du. The limits of the
+integral change accordingly: y = γ x₀ + β → u = (x₁-(γ x₀ + β))/s.
+And y = ∞ → u = -∞.
+
+                    -∞     (-u)
+                   ⌠    - e                 
+                 = ⎮  ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ du =
+                   ⌡  ⎛     (-u)⎞2          
+    (x₁-(γ x₀ + β))/s ⎝1 + e    ⎠ 
+
+Reversing the limits of integration changes the sign:
+
+   (x₁-(γ x₀ + β))/s   (-u)
+               ⌠      e                 
+             = ⎮  ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ du
+               ⌡  ⎛     (-u)⎞2          
+             -∞   ⎝1 + e    ⎠ 
+
+This integral is the cumulative distribution function (CDF) of
+the logistic distribution: the logistic sigmoid function.
+Hence,
+                       ⎥(x₁-(γ x₀ + β))/s 
+  f_green(x₀,x₁) = σ(u)⎥                 = σ((x₁-(γ x₀ + β))/s)
+                       ⎥-∞ 
+
+because σ(-∞) = 0.
+
+This means: very far from the line the chance to find only red
+or green (depending on which side of the line) is 100%, and
+precisely on the line, the chance to find red or green is 50%.
+
+The probability density to find a red point is obviously
+
+  f_red(x₀,x₁) = 1 - f_green(x₀,x₁)
+
+
+Visualization of contour lines with equal probability density
+=============================================================
+
+The scale parameter s of the logistic distribution is proportional to its
+standard deviation (σ = sπ/√3). Where the standard deviation is defined as
+the square root of the variance, the expectation value of the square of the
+distances to the mean.
+
+Note that this should not be interpreted as that the average vertical distance
+that a point lays from the line is σ π/√3 s = 1.8138 s; the average distance
+is 1.3863 s. Not that we're dealing with the logistic distribution directly
+anyway; we can have green points at arbitrary large distance above the line
+(and red ones at arbitrary distance below the line) because the probability
+density to encounter red or green is the sigmoid function, as shown above.
+
+Imagine a cloud of points that are either red or green, distributed as above.
+Then we can draw a line through the plane where the probability that a point
+is red or green is equal (0.5): the half-line x₁ₕ = γ x₀ₕ + β.
+
+In fact, any parallel line has a constant probability density for each color,
+as given above (f_green and f_red). For example, we could draw two lines at a
+distance equal to the standard deviation:
+
+   x₁ ^                    ______ line where 0.85982 is green and 0.14018 is red.
+      |                  ⟋  ↑ ___ σ = sπ/√3
+      | mostly green   ⟋    |/
+      |              ⟋     _↓____ line where 0.5 is green and 0.5 is red
+      |            ⟋     ⟋
+      |          ⟋     ⟋
+      |        ⟋     ⟋     ______ line where 0.85982 is red and 0.14018 is green.
+      |      ⟋     ⟋     ⟋
+      |    ⟋     ⟋     ⟋
+      |  ⟋     ⟋     ⟋ \
+      |⟋     ⟋     ⟋    \___ slope γ
+      |    ⟋     ⟋
+      |  ⟋     ⟋
+  h __|⟋     ⟋
+      |    ⟋
+      |  ⟋
+      |⟋         mostly red
+      |
+      |
+      +-----------------------> x₀
+
+Note that 0.85982 is the value of the probability density function f_green (f_red) at
+the standard deviation (sπ/√3) above (below) the half-line:
+
+  f_green(x₀, γ x₀ + β + sπ/√3) = σ(((γ x₀ + β + sπ/√3)-(γ x₀ + β))/s) = σ(π/√3) = 0.85982
+
+While the half line is defined by
+
+  x₁ₕ = γ x₀ₕ + β
+
+The other two lines are x₁₊ = γ x₀₊ + β + s π/√3, and x₁₋ = γ x₀₋ + β - s π/√3.
+
+
+Relationship between trainable parameters (weights and biases) and γ, β and s
+=============================================================================
+
+                   ⎡x₀⎤
+Let the vector X = ⎢x₁⎥ 
+                   ⎣1 ⎦
+
+And matrix W = [ w₀ w₁ b ]
+
+We want to following:
+                         ⎧ π/√3  if (x₀, x₁) on the top line.
+  WX = w₀x₀ + w₁x₁ + b = ⎨ 0     if (x₀, x₁) on the half line.
+                         ⎩ -π/√3 if (x₀, x₁) on the bottom line.
+
+So that the raw neuron output can directly be plugged into a sigmoid
+function to get its current representation of f_green (f_red).
+
+For points on the top and bottom line we have
+
+  w₀x₀ + w₁(γ x₀ + β +  s π/√3) + b = + π/√3
+  w₀x₀ + w₁(γ x₀ + β -  s π/√3) + b = - π/√3
+  ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ subtract
+     0 + w₁(  0  + 0 + 2s π/√3) + 0 = 2 π/√3     -->
+   
+    ╭────────────────────────╮
+    │ w₁ = 1/s  ⇐⇒  s = 1/w₁ │
+    ╰────────────────────────╯
+    
+On the half line at x₀=0 we have:
+
+  x₁ = β
+
+and
+
+  w₀ 0 + (1/s)(γ 0 + β) + b = 0 -->
+  β/s + b = 0 -->
+
+    ╭─────────────────────────╮
+    │ b = -β/s  ⇐⇒  β = -b/w₁ │
+    ╰─────────────────────────╯
+
+Finally, also using the half line,
+
+  w₀x₀ + w₁(γ x₀ + β) + b = 0
+
+Devide by x₀, assuming it is non-zero:
+
+  0 = w₀ + w₁ γ + w₁ β / x₀ + b / x₀ =
+
+using β = -b/w₁
+
+  w₀ + w₁ γ + w₁ (-b/w₁) / x₀ + b / x₀ =
+
+  w₀ + w₁ γ =
+
+devide by w₁
+
+  s w₀ + γ = 0
+
+And thus
+
+    ╭───────────────────────────╮
+    │ w₀ = -γ/s  ⇐⇒  γ = -w₀/w₁ │
+    ╰───────────────────────────╯
+
+Now note that
+
+  f_green(x₀,x₁) = σ((x₁-(γ x₀ + β))/s) =
+                   σ((x₁-((-w₀/w₁) x₀ + (-b/w₁)))/(1/w₁)) =
+                   σ(x₁ w₁ + w₀ x₀ + b)
+
+In other words, the prediction is:
+
+    ╭──────────────────────────╮
+    │ f_green(x₀,x₁) = σ(WX)   │
+    │ f_red(x₀,x₁) = 1 - σ(WX) │
+    ╰──────────────────────────╯
+
+
+A simplification
+================
+
+Before talking about gradients, lets simplify the problem
+by recognizing that it doesn't really matter that γ and x₀
+exist for the problem.
+
+We can set γ=0 for now (have just horizontal lines, and of
+course have a red/green distribution as training data that
+is not a function of x₀).
+
+   x₁ ^                    
+      |
+      |      mostly green
+      |
+      |________________________  ______ line where 0.85982 is green and 0.14018 is red.
+      |                           ↑ ___ s π/√3                                         
+      |                           |/                                                   
+  0 __|________________________  _↓____ line where 0.5 is green and 0.5 is red         
+      |                                                                                
+      |
+      |________________________  ______ line where 0.85982 is red and 0.14018 is green.
+      |
+      |
+      |      mostly red                                                                
+      |
+      +-----------------------> x₀
+
+Since γ=0, and we don't want to take it into account while learning,
+we need to force w₀ to 0. Note that under those circumstances μ=β.
+
+The network therefore has to fit
+
+  WX = w₁x₁ + b, or f_green(x₁) = σ(w₁x₁ + b)
+
+against the actual distribution that we assume to have β = -bₐ/wₐ and s = 1/wₐ,
+where wₐ and bₐ are the targets for w₁ and b to be fit to ('a' stands for
+"actual" distribution).
+
+  f_green_actual(x₁) = σ((x₁-(γ x₀ + β))/s) = σ(x₁ wₐ + bₐ).
+
+In otherwords, the best values for the trainable variables are w₁=wₐ and b=bₐ.
+
+Since x₀ has no influence anymore, we might as well
+replace it with f_green in the plot:
+
+   f_green
+        ^                                             (sigmoid function)
+     1  |                                , . , . . . .
+        |                              ⟋ . '     
+        |    μ=-bₐ/wₐ,s=1/wₐ__        .        
+        |                     \     .           
+   0.5--| RED                  \  ⟋ /            GREEN
+        |                       ⟋  /\         
+        |                     ⟋   /  \__μ=-b/w₁,s=1/w₁
+        |                   .    .           
+        |                 .                     
+        |              .       .            
+     0 _|.    .    .    . . .
+        +------------------------+-+------------------>
+                                 / \                   x₁
+                           -bₐ/wₐ   -b/w₁
+
+This shows two sigmoid functions σ((x₁-μ)/s):
+one with μ=-bₐ/wₐ, s=1/wₐ which shows the actual ratio of green vs red
+points (in the training set) and one with μ=-b/w₁, s=1/w₁ which is the
+current sigmoid that the neuron is considering (the current prediction).
+
+A loss function
+===============
+
+My idea now is to determine a "likeliness" that the training data would
+happen given the predicted distribution.
+
+Consider a single point at x₁=x. The chance that that point is green
+given the current prediction is σ(x w₁ + b), hence if it is green we
+multiply the total likeliness with that value, and if it is red we
+multiply it with (1 - σ(x w₁ + b)).
+
+Note that if we have a lot of points then the total "likeliness"
+will go to zero, as we're only multiplying it with values less
+than one for each point. However, this is not important, what
+is important is that the MOST likely scenario, however small,
+will happen for b=bₐ and w₁=wₐ.
+
+Consider a very large number of points that are evenly distributed
+over x₁, in fact, so many that we have M points for each interval Δx.
+Let xᵢ = i Δx, but realize that we have M points with this x value.
+
+The likeliness contribution for a given value of i then will be
+
+  likelinessᵢ = P_greenᵢ^N_greenᵢ * P_redᵢ^N_redᵢ
+
+where P_greenᵢ is the predicted probability that a point at xᵢ
+is green, and N_greenᵢ is the number of points at xᵢ that are
+actually green (the target color). Visa versa for red.
+
+  P_greenᵢ =   σ(xᵢ w₁ + b)
+  N_greenᵢ = M σ(xᵢ wₐ + bₐ)
+  P_redᵢ   = 1 - P_greenᵢ
+  N_redᵢ   = M - N_greenᵢ
+
+The total likeliness is then
+
+  likeliness = Π likelinessᵢ
+               i  
+
+Note again that for large M and/or small Δx this goes to zero. But for
+finite M the maximum (that hopefully will be at w₁=wₐ and b=bₐ) should,
+though very small, be non-zero. Nevertheless, to deal with the small
+value of the likeliness we will work with the natural log of it from
+now on:
+                     
+  Log(likeliness) = 𝚺 Log(likelinessᵢ) =
+                    i
+
+                  = 𝚺 ⧼N_greenᵢ Log(P_greenᵢ) + N_redᵢ Log(P_redᵢ)⧽ =
+                    i
+
+                  = 𝚺 ⧼M σ(xᵢ wₐ + bₐ) Log(σ(xᵢ w₁ + b)) + (M - M σ(xᵢ wₐ + bₐ)) Log(1 - σ(xᵢ w₁ + b))⧽ =
+                    i
+
+                  = M 𝚺 ⧼σ(xᵢ wₐ + bₐ) Log(σ(xᵢ w₁ + b)) + (1 -   σ(xᵢ wₐ + bₐ)) Log(1 - σ(xᵢ w₁ + b))⧽
+                      i
+
+The likeliness when changing w₁ and/or b away from the best fit should
+give a smaller value, but will be non-zero too unless w₁ and/or b
+are brought to a limit (that is, the Log(likeliness) will be very negative
+but still fit in an int).
+
+Therefore we first determine the optimal likeliness for w₁=wₐ and b=bₐ as
+function of how many i values we use.
+
+  Log(likeliness_opt) = M 𝚺 ⧼σ(xᵢ wₐ + bₐ) Log(σ(xᵢ wₐ + bₐ)) + (1 - σ(xᵢ wₐ + bₐ)) Log(1 - σ(xᵢ wₐ + bₐ))⧽
+                          i
+
+where we're interested to know what the sum does when xᵢ goes way beyond
+the standard deviation, aka all the way to infinity will do.
+
+In that case we can let Δx approach zero and replace the sum with an integral:
+
+
+  Log(likeliness) = M/Δx 𝚺 ⧼σ(xᵢ wₐ + bₐ) Log(σ(xᵢ w₁ + b)) Δx⧽ + M/Δx 𝚺 ⧼(1 - σ(xᵢ wₐ + bₐ)) Log(1 - σ(xᵢ w₁ + b)) Δx⧽ =
+                         i                                   i
+                          ∞                                           ∞                        
+                         ⌠                                           ⌠                         
+                  = M/Δx ⎮ σ(x wₐ + bₐ) Log(σ(x w₁ + b)) dx  +  M/Δx ⎮ (1 - σ(x wₐ + bₐ)) Log(1 - σ(x w₁ + b)) dx =
+                         ⌡                                           ⌡                         
+                       -∞                                          -∞
+
+The optimal likeliness is
+                              ∞                                            ∞
+                             ⌠                                            ⌠                                           
+  Log(likeliness_opt) = M/Δx ⎮ σ(x wₐ + bₐ) Log(σ(x wₐ + bₐ)) dx  +  M/Δx ⎮ (1 - σ(x wₐ + bₐ)) Log(1 - σ(x wₐ + bₐ)) dx =
+                             ⌡                                            ⌡                                           
+                           -∞                                           -∞                                            
+Let u = x wₐ + bₐ, then du = wₐ dx. The integral limits don't change provided that wₐ is positive,
+which it is because it is the reciprocal of s which is always positive.
+                                   ∞                               ∞
+                                  ⌠                               ⌠ 
+                      = M/(Δx wₐ) ⎮ σ(u) Log(σ(u)) du + M/(Δx wₐ) ⎮ (1 - σ(u)) Log(1 - σ(u)) du
+                                  ⌡                               ⌡ 
+                                -∞                              -∞  
+
+Let v = -u, dv = -du (and limits change sign) for the second integral, which then becomes,
+using 1 - σ(-v) = 1 - (1 - σ(v)) = σ(v) :
+    -∞                                 ∞                 
+   ⌠                                  ⌠                  
+ - ⎮ (1 - σ(-v)) Log(1 - σ(-v)) dv =  ⎮ σ(v) Log(σ(v)) dv
+   ⌡                                  ⌡                  
+  ∞                                 -∞                   
+                                    ∞                 
+                                   ⌠                        3 π² M
+  Log(likeliness_opt) = 2M/(Δx wₐ) ⎮ σ(u) Log(σ(u)) du = - ⎼⎼⎼⎼⎼⎼⎼⎼
+                                   ⌡                        Δx wₐ
+                                 -∞                   
+
+Note that this result has been verified with the code in likeliness.cxx.
+
+M, Δx and wₐ (= 1/sₐ) are all "constants"; exclusively determined by the input (training) data.
+The Log(likeliness) value that we'd get when w₁ and b are not already optimally determined
+should give us:
+
+  Log(likeliness) = 2M/(Δx wₐ) g(w₁, b)
+
+where g depends on wₐ and bₐ as well.
+
+Lets do the same thing again, but now for the full Log(likeliness) (see above):
+                          ∞                                           ∞                        
+                         ⌠                                           ⌠                         
+  Log(likeliness) = M/Δx ⎮ σ(x wₐ + bₐ) Log(σ(x w₁ + b)) dx  +  M/Δx ⎮ (1 - σ(x wₐ + bₐ)) Log(1 - σ(x w₁ + b)) dx =
+                         ⌡                                           ⌡                         
+                       -∞                                          -∞
+Again substitute u = x wₐ + bₐ, du = wₐ dx --> x = (u - bₐ)/wₐ, dx = 1/wₐ du
+as well as v = -u, dv = -du.
+                               ∞                                                    ∞                        
+                              ⌠                                                    ⌠                         
+                  = M/(Δx wₐ) ⎮ σ(u) Log(σ(((u - bₐ)/wₐ) w₁ + b)) du  +  M/(Δx wₐ) ⎮ σ(v) Log(σ(-(((-v - bₐ)/wₐ) w₁ + b))) dv =
+                              ⌡                                                    ⌡                         
+                            -∞                                                   -∞
+                               ∞                                                        ∞                        
+                              ⌠                                                        ⌠                         
+                  = M/(Δx wₐ) ⎮ σ(u) Log(σ(u w₁/wₐ + (b - bₐ w₁/wₐ))) du  +  M/(Δx wₐ) ⎮ σ(v) Log(σ(v w₁/wₐ - (b - bₐ w₁/wₐ))) dv =
+                              ⌡                                                        ⌡                         
+                            -∞                                                       -∞
+
+                  = 2M/(Δx wₐ) g(w₁/wₐ, b - bₐ w₁/wₐ)
+
+where we now noted that this function g can be a function of only the two parameters given.
+
+In the special case that b and bₐ are zero the two integrals become the same, so that we can write
+
+                  ∞                                        
+                 ⌠                                         
+  g(w₁/wₐ, 0) =  ⎮ σ(u) Log(σ(u w₁/wₐ)) du 
+                 ⌡                                         
+               -∞                                          
+
+This integral is non-trivial (Mathematica couldn't do it) but I figured it out
+(see `integral_sigma_log_sigma(long double we)` in likeliness.cxx):
+
+                   π² ((w₁/wₐ)² + 1)    -π² ⎛ w₁   wₐ ⎞
+  g(w₁/wₐ, 0) = - ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ = ⎼⎼⎼⎼ ⎢ ⎼⎼ + ⎼⎼ ⎥
+                      12 (w₁/wₐ)        12  ⎝ wₐ   w₁ ⎠ 
+
+
+Note how this is symmetrical under the permutation w₁ <--> wₐ.
+
+In the special case that w₁=wₐ we can write:
+                      ∞                                      ∞                                        
+                     ⌠                                      ⌠                                         
+  g(1, b - bₐ) = 1/2 ⎮ σ(u) Log(σ(u + (b - bₐ))) du  +  1/2 ⎮ σ(v) Log(σ(v - (b - bₐ))) dv =
+                     ⌡                                      ⌡                                         
+                   -∞                                     -∞                                          
+
+These integrals are much harder even, but after adding both the result is so simple
+that I also could guess it after numerically calculating it (again, see likeliness.cxx):
+
+                 -π²   (b - bₐ)²
+  g(1, b - bₐ) = ⎼⎼⎼ - ⎼⎼⎼⎼⎼⎼⎼⎼⎼
+                  6       4
+
+After that it wasn't that hard to guess the complete function too:
+
+  long double g_weight_ratio_0 = integral_sigma_log_sigma(weight_ratio);
+  return g_weight_ratio_0 - 0.25L / weight_ratio * bias_error * bias_error;
+
+                            -π² ⎛ w₁   wₐ ⎞   (b - bₐ w₁/wₐ)²
+  g(w₁/wₐ, b - bₐ w₁/wₐ) = ⎼⎼⎼⎼ ⎢ ⎼⎼ + ⎼⎼ ⎥ - ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+                            12  ⎝ wₐ   w₁ ⎠      4 (w₁/wₐ)
+
+The largest likeliness (that is always less than zero) will give rise to the
+largest value of Log(likeliness) (that is always negative nevertheless).
+
+A good loss function is the negative of this Log(likeliness) expression,
+where we can ignore any variable that only depends on the (constant) training
+data. Aka, we can ignore 2M/(Δx wₐ) and simply set the loss function equal
+to -g(w₁/wₐ, b - bₐ w₁/wₐ) (also ignoring a factor of 4:
+
+                 π² ⎛ w₁   wₐ ⎞   (b - bₐ w₁/wₐ)²   3 (wₐ b - bₐ w₁)² + π² (wₐ² + w₁²)
+  loss(w₁, b) = ⎼⎼⎼ ⎢ ⎼⎼ + ⎼⎼ ⎥ + ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+                 3  ⎝ wₐ   w₁ ⎠       (w₁/wₐ)                   3 wₐ w₁
+
+The partial derivatives then are
+
+            π² ⎛ 1    wₐ  ⎞   bₐ²   b² wₐ   π²/3 + bₐ²   π²/3 + b² wₐ
+  ∂L/∂w₁ = ⎼⎼⎼ ⎢ ⎼⎼ - ⎼⎼⎼ ⎥ + ⎼⎼⎼ - ⎼⎼⎼⎼⎼ = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ - ⎼⎼⎼⎼⎼⎼⎼⎼⎼ ⎼⎼
+            3  ⎝ wₐ   w₁² ⎠   wₐ    w₁²         wₐ          w₁     w₁
+
+             ⎛       wₐ ⎞
+  ∂L/∂b = -2 ⎢bₐ - b ⎼⎼ ⎥
+             ⎝       w₁ ⎠
+
+Setting these to zero shows that (we'd find), from the last one:
+
+         w₁
+  b = bₐ ⎼⎼
+         wₐ
+
+and then, filling that into the first one:
+
+  π²/3 + bₐ²   π²/3 + (bₐ(w₁/wₐ))² wₐ
+  ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼ ⎼⎼
+      wₐ              w₁           w₁
+
+Multiply both sides with w₁²wₐ,
+
+  (π²/3 + bₐ²)w₁² = π²/3 wₐ² + bₐ²w₁² --> π²/3 w₁² = π²/3 wₐ² --> w₁ = +/- wₐ
+
+In order for this to be a minimum, the second derivative must be positive.
+The second derivative is:
+
+
+  ∂L²/(∂w₁)² = 2 (π²/3 + b²) wₐ / w₁³
+
+which is only positive for the w₁ = +wₐ solution.
+
+Hence, using a gradient decent we will always end up with w₁=wₐ and b=bₐ,
+the actual weight and bias.
+
+This proves that -Log(likeliness) is a suitable and stable loss function.
+
+
+Gradients
+=========
+
+Remember that the total likeliness was defined as
+
+  likeliness = Π likelinessᵢ
+               i  
+where
+
+  likelinessᵢ = P_greenᵢ^N_greenᵢ * P_redᵢ^N_redᵢ
+
+Where i runs over the x-coordinates of a virtual "grid" of points.
+
+But we can replace that with running over all the training data points.
+Let x₁ₛ be the x₁ coordinate of the s-th training Sample, with
+color tₛ (0 for red, 1 for green). Then the likeliness becomes
+
+  likeliness = Π ⧼tₛ P_greenₛ + (1 - tₛ) P_redₛ⧽
+               s
+
+That is, we multiply with either P_greenₛ or P_redₛ, depending on
+whether the point is green or red. Filling in P_greenₛ = σ(x₁ₛ w₁ + b)
+and P_redₛ = 1 - P_greenₛ:
+
+  likeliness = Π ⧼tₛ σ(x₁ₛ w₁ + b) + (1 - tₛ)(1 - σ(x₁ₛ w₁ + b))⧽
+               s
+
+The loss function then becomes:
+
+  loss = -Log(likeliness) = - 𝚺 Log(tₛ zₛ + (1 - tₛ)(1 - zₛ)) = - 𝚺 Log( (2tₛ - 1)zₛ + (1 - tₛ) )
+                              s                                   s
+
+where zₛ = σ(x₁ₛ w₁ + b) is the result of the activation function.
+Thus
+                   1 - 2tₛ                     1               -1
+  ∂L/∂zₛ = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼, which is ⎼⎼⎼⎼⎼⎼ if t=0 and ⎼⎼ if t=1.
+            1 - tₛ - (1 - 2tₛ) zₛ            1 - zₛ            zₛ
+
+
+  ∂zₛ/∂w₁ = zₛ (1 - zₛ) x₁ₛ
+
+  ∂zₛ/∂b =  zₛ (1 - zₛ)
+
+
+  ∂L/∂w₁ = 𝚺 ∂L/∂zₛ ∂zₛ/∂w₁ = 𝚺 ((1 - tₛ) zₛ - tₛ (1 - zₛ)) x₁ₛ
+           s                  s
+
+  ∂L/∂b  = 𝚺 ∂L/∂zₛ ∂zₛ/∂b  = 𝚺 ((1 - tₛ) zₛ - tₛ (1 - zₛ))
+           s                  s
+
+Bringing back w₀ = -γ/s is trivial. Right before the simplification where we set γ=0 we had:
+
+  f_green(x₀,x₁) = σ(x₁ w₁ + w₀ x₀ + b)
+
+The argument of the sigmoid has always been WX.
+
+The likeliness for diagonal lines, with non-zero γ, is therefore
+
+  likeliness = Π ⧼tₛ σ(W Xₛ) + (1 - tₛ)(1 - σ(W Xₛ))⧽
+               s
+
+we find that
+
+  ∂zₛ/∂w₀ = zₛ (1 - zₛ) x₀ₛ
+
+and
+
+  ∂L/∂w₀ = 𝚺 ∂L/∂zₛ ∂zₛ/∂w₀ = 𝚺 ((1 - tₛ) zₛ - tₛ (1 - zₛ)) x₀ₛ
+           s                  s
+
+as in README.back_propagation (which you should have read first) we can
+generalize this by setting w₂=b, x₂=1 and then writing:
+
+  ∂L/∂wᵢⱼ = ∂L/∂zᵢ ∂zᵢ/∂wᵢⱼ = δ₁ᵢxⱼ
+
+We only have one neuron (output) so i here is 0 (the index of the single neuron):
+
+  ∂L/∂w₀ⱼ = ∂L/∂z₀ ∂z₀/∂w₀ⱼ = δ₁₀xⱼ
+
+Using the backpropagation magic, we have the initial ξ:
+
+                            -1                -1                   -1
+  ξ₀ₛ = ∂L/∂z₀ₛ, which is ⎼⎼⎼⎼⎼⎼⎼ if tₛ=0 and ⎼⎼⎼ if tₛ=1, aka ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+                          z₀ₛ - 1             z₀ₛ              z₀ₛ + tₛ - 1
+
+  δ₀ₛ = ξ₀ₛ ∂σ/∂z₀ₛ = ξ₀ₛz₀ₛ(1 - z₀ₛ)
+
+There is no need to calculate ξ₀ₛ = Wᵀδ because we only have a single layer.
+
+Finally, the gradient matrix is:
+
+  G₀ⱼ = δ Xᵀ
+
+We can also combine the calculation of ξ₀ₛ and δ₀ₛ for the last layer,
+and calculate the initial δ₀ₛ as
+
+  δ₀ₛ = z₀ₛ if tₛ=0 and (z₀ₛ-1) if tₛ=1, aka δ₀ₛ = z₀ₛ - tₛ = residual₀ₛ.
+

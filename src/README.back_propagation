@@ -374,3 +374,32 @@ Then we can define
 at which point δₗᵢ can be forgotten and we can continue with
 the previous layer (l --> l-1).
 
+Handling a batch
+================
+
+Adding an extra dimension for the batch size, and leaving away the l index
+that stands for layer, we have for the initial ξ (where i runs over the output neurons):
+
+  ξᵢₛ = ∂L/∂zᵢₛ
+
+In the case of the MSE that is ξᵢₛ = 2 (zᵢₛ - tᵢₛ) = 2 residualᵢₛ
+
+Furthermore we get (where ξ is now a variable that is updated, to be passed to the next layer):
+
+  δᵢₛ = ξᵢₛ ∂a/∂zᵢₛ
+
+where `a` is the activation function. In the case that a is the sigmoid that is δᵢₛ = ξᵢₛ zᵢₛ(1-zᵢₛ).
+This matrix can be used to update ξ:
+
+  ξᵢₛ = Wᵀδ
+
+aka ξᵢₛ = \sum_{k=0}^{Mₗ-1}(δₖₛ wₖᵢ), where Mₗ is the number of output neurons of the current layer.
+Then the gradient matrix is:
+
+  Gᵢⱼ = δ Xᵀ
+
+aka Gᵢⱼ = \sum_{s=0}^{batch_size-1}(δᵢₛ xⱼₛ).
+Which can be used to update the weight/bias in the current layer:
+
+  wᵢⱼ' = wᵢⱼ - (α / batch_size) Gᵢⱼ
+

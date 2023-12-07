@@ -8,6 +8,8 @@
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
+constexpr int size_of_batch = 3;
+
 float x1(float x0)
 {
   return 2.5f * x0 - 4.3f;
@@ -62,7 +64,7 @@ int main()
   int seed1 = seed_distribution(seed_generator);
   int seed2 = seed_distribution(seed_generator);
 
-//  seed1 = 508151945; seed2 = 970054351;
+  seed1 = 136637526; seed2 = 806889242;
 
   std::cout << "seed1 = " << seed1 << "; seed2 = " << seed2 << '\n';
 
@@ -102,7 +104,7 @@ int main()
   constexpr int input_units = 2;
   constexpr int output_units = 1;
   constexpr int UnknownRank = -1;       // Dynamic batch size.
-  constexpr float alpha = 0.1;
+  constexpr float alpha = 0.01;
 
   //---------------------------------------------------------------------------
   // Create graph.
@@ -119,7 +121,7 @@ int main()
   auto weights_bias = Variable(scope.WithOpName("Weights"), {output_units, input_units + 1}, DT_FLOAT);
 
   // Define a persistent inputs_1 Variable.
-  auto inputs_1 = Variable(scope.WithOpName("Inputs1"), {input_units + 1, 9}, DT_FLOAT);
+  auto inputs_1 = Variable(scope.WithOpName("Inputs1"), {input_units + 1, size_of_batch}, DT_FLOAT);
 
   // Define a persistent variable for the batch_size, so we don't have to feed inputs
   // every epoch just to get the batch size from it.
@@ -176,52 +178,42 @@ int main()
   auto update_weights_bias_op2 = Assign(scope, weights_bias, abs_weights_bias, Assign::Attrs().UseLocking(true)).operation;
 
   // Perform `weights_bias * inputs_1` and apply activation function.
-  auto sum = MatMul(scope.WithControlDependencies({update_weights_bias_op2}), weights_bias, inputs_1);
-  //
-  // weights_bias = [ w₀₀  w₀₁  w₀₂ ], where w₀₂ is the bias.
-  //
-  //            ⎡ x₀   ⎤
-  // inputs_1 = ⎢ x₁ … ⎥
-  //            ⎣ 1    ⎦
-  //
-  // sum_s = w₀₀ x₀ + w₀₁ x₁ + w₀₂
-  //
-  // Point s=1: x₀ = 1, x₁ = -1.00969648  [label: 1 / green]
-  // Point s=2: x₀ = 2, x₁ = 0.565050364  [label: 0 / red]
-  //
-  // The correct line is x₁ = 2.5 x₀ - 4.3, thus point 1: x₀ = 1, x₁ = -1.8   [is above correct line]
-  //                                             point 2: x₀ = 2, x₁ = 0.7    [is below the correct line]
-  //
-  // We get stuck at:
-  //
-  // sum_s = -0.539493918 x₀ - 2.46913052 x₁ + 0.154095531
-  //
-  // which corresponds to the line: y = (-0.539493918 / 2.46913052) x + (0.154095531 / 2.46913052) = -0.218495504 x₀ + 0.062408823
-  // and thus corresponds to point 1: x₀ = 1, x₁ = -0.15608668   [thus x₁ = -1.00969648 is below this line]
-  //                         point 2: x₀ = 2, x₁ = -0.37458219   [thus x₁ = 0.565050364 is above this line]
-  //
-  // sum_₁ = -0.539493918 * 1 - 2.46913052 * -1.00969648 + 0.154095531 = 2.107674003
-  // sum_₂ = -0.539493918 * 2 - 2.46913052 * 0.565050364 + 0.154095531 = -2.320075404
-  //
-  // outputs_₁ = sigmoid(2.107674003) = 0.891646816
-  // outputs_₂ = sigmoid(-2.320075404) = 0.089473916
+  auto z = MatMul(scope.WithControlDependencies({update_weights_bias_op2}), weights_bias, inputs_1);
 
-  debug_show("sum", sum);
-  auto outputs = Sigmoid(scope, sum);
+  debug_show("z", z);
+  auto outputs = Sigmoid(scope, z);
   debug_show("outputs", outputs);
 
   // Calculate the difference between the outputs and the targets.
   auto residual = Subtract(scope.WithOpName("Residual"), outputs, labels);     // Shape: [output_units x batch_size]
 
+#if 0
   // Define a loss function, lets use Mean Squared Error (MSE) (totally random).
   // The loss function is not really used, except for printing.
   auto loss = ReduceMean(scope.WithOpName("Loss"), Square(scope, residual), {0});
+#else
+  // Use binary cross-entropy (BCE) loss function (using t = targets = labels):
+  // loss = -(t log(outputs) + (1 - t) log(1 - outputs))
+//  auto loss = ReduceMean(scope.WithOpName("Loss"), Negate(scope, Add(scope, Xlogy(scope, labels, outputs), Xlogy(scope, Sub(scope, 1.f, labels), Sub(scope, 1.f, outputs)))), {0});
+
+  // Combine the binary cross-entropy loss (BCE) function with the sigmoid activation function (go straight from z to loss)
+  // for greater numerical stability (using that outputs = sigmoid(z).
+  //
+  // loss = -t log(sigmoid(z)) - (1 - t) log(1 - sigmoid(z)) =
+  //      = -t log(1 / (1 + exp(-z))) - (1 - t) log(1 - 1 / (1 + exp(-z))) =
+  //      = t log(1 + exp(-z)) + (1 - t) log(1 + exp(z)) =
+  //      = max(z, 0) - t * z + log(1 + exp(-abs(z)))
+  auto loss = Add(scope,
+      Sub(scope, Maximum(scope, z, 0.f),
+                 Multiply(scope, labels, z)),
+      Log(scope, Add(scope, 1.f, Exp(scope, Negate(scope, Abs(scope, z))))));
+#endif
   debug_show("loss", loss);
 
   //---------------------
   // Backward propagation.
 
-  // Calculate the initial xi value. This is ∂L/∂oᵢ, where L is the loss and O the output (weights_bias * inputs_1).
+  // Calculate the initial xi value. This is ∂L/∂zᵢ, where L is the loss and Z the output (weights_bias * inputs_1).
   // So really this is 2/M (output - labels), but since M = output_units = 1 that is just 2 * residual.
   //
   // As described in README.back_propagation:
@@ -236,7 +228,9 @@ int main()
   //    ξᵢₛ = 2 residualᵢₛ
   //
   // where s runs over all the samples in the batch.
-  //
+
+  // Derivative of the loss function.
+#if 0
   auto xi_1 = Multiply(scope.WithOpName("Xi_1"), 2.f, residual);   // Shape: [output_units x batch_size]
   debug_show("xi_1", xi_1);
 
@@ -257,6 +251,11 @@ int main()
   //
   auto derivative_activation = Multiply(scope, outputs, Sub(scope, 1.f, outputs));
   auto delta = Multiply(scope.WithOpName("Delta"), xi_1, derivative_activation);      // Shape: [output_units x batch_size]
+#else
+  //auto xi_1 = Negate(scope.WithOpName("Xi_1"), Sub(scope, Xdivy(scope, labels, outputs), Xdivy(scope, Sub(scope, 1.f, labels), Sub(scope, 1.f, outputs))));
+  // Calculate delta as Derivative of the combined activation + loss function.
+  auto delta = Sub(scope, Sigmoid(scope, z), labels);
+#endif
   debug_show("delta", delta);
 
   // Calculate xi_0. The README has ξₗᵢ = \sum_{k=0}^{Mₗ-1}(δₗₖ wₖᵢ).
@@ -296,7 +295,7 @@ int main()
   std::uniform_real_distribution<float> weights_distribution(0.1, 1.0);
 
   std::vector<float> labels_data; // = { 0, 1, 1, 0, 0, 1, 0, 0, 1 };
-  for (int i = 0; i < 9; ++i)
+  for (int i = 0; i < size_of_batch; ++i)
     labels_data.push_back((weights_distribution(generator) > 0.55) ? 0.f : 1.f);
   int64 const number_of_data_points = labels_data.size();
 
@@ -361,7 +360,7 @@ int main()
   for (int n = 0; n < 100000; ++n)
   {
     std::vector<Tensor> outputs;
-    if (n % 100 != 0)
+    if (n % 1 != 0)
       TF_CHECK_OK(session.Run(inputs_feed, fetch_outputs1, &outputs));
     else
     {
@@ -387,27 +386,28 @@ int main()
       auto tensor_map1 = outputs[1].tensor<float, 2>();
       std::cout << "outputs = [";
       char const* sep = "";
-      for (int s = 0; s < 9; ++s)
+      for (int s = 0; s < size_of_batch; ++s)
       {
         std::cout << sep << tensor_map1(0, s);
         sep = ", ";
       }
       std::cout << "]" << std::endl;
-      auto loss_tensor_map = outputs[2].tensor<float, 1>();
+      auto loss_tensor_map = outputs[2].tensor<float, 2>();
       std::cout << "loss = [";
       sep = "";
-      for (int s = 0; s < 9; ++s)
+      for (int s = 0; s < size_of_batch; ++s)
       {
-        std::cout << sep << std::format("{: >10.7f}", loss_tensor_map(s));
+        std::cout << sep << std::format("{: >10.7f}", loss_tensor_map(0, s));
         sep = ", ";
       }
       std::cout << "]" << std::endl;
-      std::cout << "labels = " << labels_tensor.DebugString(9) << std::endl;
-      std::cout << "residual = " << outputs[3].DebugString(9) << std::endl;
+      std::cout << "labels = " << labels_tensor.DebugString(size_of_batch) << std::endl;
+      std::cout << "residual = " << outputs[3].DebugString(size_of_batch) << std::endl;
+      auto residual_tensor_map = outputs[3].tensor<float, 2>();
       bool correct_prediction = true;
-      for (int s = 0; s < 9; ++s)
+      for (int s = 0; s < size_of_batch; ++s)
       {
-        if (loss_tensor_map(s) >= 0.25f)
+        if (std::abs(residual_tensor_map(0, s)) > 0.5f)
         {
           correct_prediction = false;
           break;
@@ -428,7 +428,7 @@ int main()
       }
       gnuplot_cmd(h1, equation.str().c_str());
       gnuplot_plot_equation(h1, function_name.str().c_str(), ("epoch " + std::to_string(n)).c_str());
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
   }
 

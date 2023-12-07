@@ -17,6 +17,14 @@ endmacro()
 add_test(neural_network neural_network)
 target_link_libraries(neural_network tfdebug::tfdebug gnuplot_i::gnuplot_i)
 
+add_executable(logistic logistic.cxx)
+target_include_directories(logistic PRIVATE "${CMAKE_SOURCE_DIR}/stats/include")
+target_link_libraries(logistic gnuplot_i::gnuplot_i)
+
+add_executable(likeliness likeliness.cxx)
+target_include_directories(likeliness PRIVATE "${CMAKE_SOURCE_DIR}/stats/include")
+target_link_libraries(likeliness gnuplot_i::gnuplot_i)
+
 add_subdirectory(tfdebug)
 add_subdirectory(intro)
 add_subdirectory(ops)
