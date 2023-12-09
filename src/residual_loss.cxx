@@ -86,15 +86,22 @@ class Line
 
     // Generate a scale factor between 0.25 and 4.
     std::uniform_real_distribution<float_type> scaling_factor_dist(-2, 2);
-    float_type s_inverse = std::pow(2, scaling_factor_dist(generator));  // Random scaling factor between 2^-2 and 2^2.
+    float_type s = std::pow(2, scaling_factor_dist(generator));  // Random scaling factor between 2^-2 and 2^2.
 
     // Generate lines that have a random distance to the origin in the range [-2sd, 2sd].
-    std::uniform_real_distribution<float_type> distance_dist(-2 * sd1, 2 * sd1);
+    std::uniform_real_distribution<float_type> distance_dist(-2 * sd1 * s, 2 * sd1 * s);
     float_type distance = distance_dist(generator);
 
-    W_(0, 0) = -sin(theta) * s_inverse;
-    W_(0, 1) = cos(theta) * s_inverse;
-    W_(0, 2) = -distance * s_inverse;  // Shift the line along the normal plus or minus twice the standard deviation.
+    W_(0, 0) = -sin(theta) / s;
+    W_(0, 1) = cos(theta) / s;
+    W_(0, 2) = -distance / s;           // Shift the line along the normal plus or minus twice the standard deviation.
+
+    // N = (w0 * s, w1 * s)
+    // kN = (k * w0 * s, k * w1 * s)
+    // W kN = k * w0^2 * s + k * w1^2 * s = (w0^2 + w1^2) * k * s = k / s
+    // W kN + w2 = 0 --> k / s + w2 = 0 --> k = -w2 * s = distance.
+
+    std::cout << "s = " << s << "; distance = " << distance << std::endl;
   }
 
   float_type scale_factor() const
@@ -153,22 +160,39 @@ class Line
 
 bool Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, double y_max) const
 {
-  intersections::HyperPlane<float_type, 2> line({W_(0, 0), W_(0, 1)}, W_(0, 2));
-  intersections::HyperBlock<float_type, 2> rectangle({x_min, y_min}, {x_max, y_max});
-
-  auto intersections = rectangle.intersection_points(line);
-  if (intersections.size() < 2)
-    return false;
-  if (intersections.size() != 2)
+  float_type s = scale_factor();
+  for (int sd = -1; sd <= 1; ++sd)
   {
-    for (int i = 0; i < (int)intersections.size(); ++i)
-      std::cout << intersections[i][0] << ", " << intersections[i][1] << std::endl;
-  }
+    intersections::HyperPlane<float_type, 2> line({W_(0, 0), W_(0, 1)}, W_(0, 2) + sd * sd1);
+    intersections::HyperBlock<float_type, 2> rectangle({x_min, y_min}, {x_max, y_max});
 
-  std::ostringstream oss;
-  oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
-    " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead";
-  gnuplot_cmd(h1, oss.str().c_str());
+    auto intersections = rectangle.intersection_points(line);
+    if (intersections.size() < 2)
+      return false;
+    if (intersections.size() != 2)
+    {
+      for (int i = 0; i < (int)intersections.size(); ++i)
+        std::cout << intersections[i][0] << ", " << intersections[i][1] << std::endl;
+    }
+
+    {
+      std::ostringstream oss;
+      oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
+        " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead";
+      gnuplot_cmd(h1, oss.str().c_str());
+    }
+  }
+  gnuplot_cmd(h1, "set style line 1 lt 1 lc rgb \"purple\" lw 1");
+  gnuplot_cmd(h1, "set grid back ls 1");
+  gnuplot_cmd(h1, "set xtics 1");
+  gnuplot_cmd(h1, "set ytics 1");
+  {
+    std::ostringstream oss;
+    double distance = std::abs(W_(0, 2) * s);
+    oss << "set object 1 circle at 0,0 size " << distance << " fc rgb \"purple\" lw 1";
+    gnuplot_cmd(h1, oss.str().c_str());
+  }
+  gnuplot_cmd(h1, "set size ratio -1");
   gnuplot_cmd(h1, "replot NaN");
 
   return true;
