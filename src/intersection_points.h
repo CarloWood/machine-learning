@@ -97,14 +97,14 @@ struct Vector
   }
 };
 
-// An n-1 dimensional hyper-plane, orthogonal to a given normal unit vector N, with offset dN from the origin.
+// An n-1 dimensional hyper-plane, orthogonal to a given normal vector N, with offset dN from the origin.
 template<std::floating_point FloatType, int n>
 struct HyperPlane
 {
   using VectorType = Vector<FloatType, n>;
 
+  VectorType N_;                                        // The normal of the hyper-plane.
   FloatType d_;                                         // The signed distance (in Normal vectors) from origin to hyper-plane.
-  VectorType N_;                                        // The unit normal of the hyper-plane.
 
   // Create a hyper-plane that satisfies N·X + d = 0.
   HyperPlane(VectorType const& N, FloatType d) : N_(N), d_(d) { }
