@@ -7,6 +7,7 @@
 #include <thread>
 #include <limits>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <cassert>
 
@@ -376,25 +377,18 @@ int main()
 
     if ((epoch % 1) == 0)
     {
-      // L = - 𝚺 (tₛ Log(zₛ) - (1 - tₛ) Log(1 - zₛ))
-      double L1 = 0;
-      double L2 = 0;
+      // L = - 𝚺 (tₛ Log(zₛ) + (1 - tₛ) Log(1 - zₛ))
+      float_type L1 = 0;
       for (int j = 0; j < (int)points.size(); ++j)
       {
         if (T(0, j) == 0)
-        {
           L1 -= std::log(1 - Z(0, j));
-          L2 += std::log(1 - Z(0, j));
-        }
         else
-        {
           L1 -= std::log(Z(0, j));
-          L2 -= std::log(Z(0, j));
-        }
       }
       weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), epoch);
       std::cout << "W = " << W << "; slope = " << (-W(0,0)/W(0,1)) << std::endl;
-      std::cout << "loss = " << L1 << " / " << L2 << std::endl;
+      std::cout << "Binary cross-entropy loss = " << L1 << std::endl;
       // Calculate the *actual* loss function that this was derived from:
    // z = σ(WX)
 
@@ -428,7 +422,8 @@ int main()
         else
           L -= std::log(z);
       }
-      std::cout << "-Log(likeliness) = " << L << "; /L1 = " << (L / L1) << std::endl;
+      std::cout << "-Log(likeliness) = " << L << "; /L1 = " <<
+        std::setprecision(std::numeric_limits<FloatType>::digits10) << (L / L1) << std::endl;
 
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
