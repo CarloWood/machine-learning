@@ -605,7 +605,7 @@ and P_redₛ = 1 - P_greenₛ:
 
 The loss function then becomes:
 
-  loss = -Log(likeliness) = - 𝚺 Log(tₛ zₛ + (1 - tₛ)(1 - zₛ)) = - 𝚺 Log( (2tₛ - 1)zₛ + (1 - tₛ) )
+  L = -Log(likeliness) = - 𝚺 Log(tₛ zₛ + (1 - tₛ)(1 - zₛ)) = - 𝚺 Log( (2tₛ - 1)zₛ + (1 - tₛ) )
                               s                                   s
 
 where zₛ = σ(x₁ₛ w₁ + b) is the result of the activation function.
@@ -646,15 +646,21 @@ and
   ∂L/∂w₀ = 𝚺 ∂L/∂zₛ ∂zₛ/∂w₀ = 𝚺 ((1 - tₛ) zₛ - tₛ (1 - zₛ)) x₀ₛ
            s                  s
 
-as in README.back_propagation (which you should have read first) we can
-generalize this by setting w₂=b, x₂=1 and then writing:
+as in README.back_propagation (which you should have read first).
+We can include the bias into the weights matrix by setting w₂=b,
+x₂=1 and then writing (see README.back_propagation):
 
-  ∂L/∂wᵢⱼ = ∂L/∂zᵢ ∂zᵢ/∂wᵢⱼ = δ₁ᵢxⱼ
+  ∂L/∂wᵢⱼ = ∂L/∂zᵢ ∂zᵢ/∂vᵢ ∂vᵢ/∂wᵢⱼ = δ₁ᵢxⱼ
+
+where
+
+  δ₁ᵢ = ∂L/∂zᵢ ∂zᵢ/∂vᵢ
 
 We only have one neuron (output) so i here is 0 (the index of the single neuron):
 
   ∂L/∂w₀ⱼ = ∂L/∂z₀ ∂z₀/∂w₀ⱼ = δ₁₀xⱼ
 
+(using that ∂zᵢ/∂vᵢ ∂vᵢ/∂wᵢⱼ = ∂zᵢ/∂wᵢⱼ).
 Using the backpropagation magic, we have the initial ξ:
 
                             -1                -1                   -1
@@ -665,7 +671,7 @@ Using the backpropagation magic, we have the initial ξ:
 
 There is no need to calculate ξ₀ₛ = Wᵀδ because we only have a single layer.
 
-Finally, the gradient matrix is:
+Finally, the gradient matrix ∂L/∂w₀ⱼ is thus:
 
   G₀ⱼ = δ Xᵀ
 
@@ -674,3 +680,21 @@ and calculate the initial δ₀ₛ as
 
   δ₀ₛ = z₀ₛ if tₛ=0 and (z₀ₛ-1) if tₛ=1, aka δ₀ₛ = z₀ₛ - tₛ = residual₀ₛ.
 
+
+The loss function
+=================
+
+Above we found
+
+                   1 - 2tₛ                     1               -1
+  ∂L/∂zₛ = ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼, which is ⎼⎼⎼⎼⎼⎼ if t=0 and ⎼⎼ if t=1.
+            1 - tₛ - (1 - 2tₛ) zₛ            1 - zₛ            zₛ
+
+Integrating this then gives
+
+  L = - 𝚺 (tₛ Log(zₛ) + (1 - tₛ) Log(1 - zₛ))
+        s
+
+Low and behold, this is known as the "Binary Cross-Entropy Loss Function"
+already widely used for binary classification tasks!
+See for example https://ml-cheatsheet.readthedocs.io/en/latest/loss_functions.html#cross-entropy

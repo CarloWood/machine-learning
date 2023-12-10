@@ -5,6 +5,7 @@
 #include <random>
 #include <utility>
 #include <thread>
+#include <limits>
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -169,22 +170,25 @@ void Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, doub
     if (intersections.size() != 2)
       continue;
 
-    std::ostringstream oss;
-    oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
-      " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead front";
-    if (epoch == 0)
-      oss << " ls 2";
-
     // Decreasing w₂ moves a line into the green area.
-    char const* color = (sd == -1) ? "green" : (sd == 0) ? "blue" : "red";
+    char const* color;
+    if (epoch == 0)
+      color = (sd == -1) ? "green" : (sd == 0) ? "blue" : "red";
+    else
+      color = (sd == -1) ? "#a0ffa0" : (sd == 0) ? "#a0a0ff" : "#ffa0a0";
     std::ostringstream oss_color;
-    oss_color << "set style line 2 lt 1 lc rgb \"" << color << "\"";
+    oss_color << "set style line " << (epoch + 1) << " lt 1 lc rgb \"" << color << "\"";
     if (epoch == 0)
       oss_color << " lw 2";
     else
       oss_color << " lw 1";
     gnuplot_cmd(h1, oss_color.str().c_str());
 
+    std::ostringstream oss;
+    oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
+      " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead ls " << (epoch + 1);
+    if (epoch == 0)
+      oss << " front";
     gnuplot_cmd(h1, oss.str().c_str());
   }
   {
@@ -308,14 +312,14 @@ int main()
   RandomGenerator seed_generator(rd());
   std::uniform_int_distribution<int> seed_dist(0, 10000);
   int seed = seed_dist(seed_generator);
-  seed = 9370;
+//  seed = 9370;
   std::cout << "seed = " << seed << std::endl;
   RandomGenerator generator(seed);
 
   Line line(generator);
   std::cout << "line = " << line << std::endl;
 
-  std::vector<Vector> points = generate_points(generator, line, 5000);
+  std::vector<Vector> points = generate_points(generator, line, 50);
   std::vector<Color> targets = generate_colors(generator, line, points);
 
   Tensor<2> X({3, (int)points.size()});
@@ -348,6 +352,8 @@ int main()
 
   Function activation{[](float_type u){ return float_type{1} / (float_type{1} + std::exp(-u)); }};
 
+  std::cout.precision(std::numeric_limits<float_type>::digits10 + 1);
+
   for (int epoch = 1; epoch < 10000; ++epoch)
   {
     // Calculate weights and bias applied to inputs.
@@ -360,17 +366,70 @@ int main()
     Tensor<2> delta = Z - T;
 
     // Calculate the gradient matrix.
+    // ∂L/∂wᵢⱼ = \sum over all samples of δₗᵢxⱼ devided by the number of samples (but we do that in the next line).
     Tensor<2> G = contract(delta, X, 1, 1);
 
     //std::cout << "G = " << G << std::endl;
 
     // Next epoch.
-    W -= (0.1 / points.size()) * G;
+    W -= (0.2 / points.size()) * G;
 
-    if ((epoch % 100) == 0)
+    if ((epoch % 1) == 0)
     {
+      // L = - 𝚺 (tₛ Log(zₛ) - (1 - tₛ) Log(1 - zₛ))
+      double L1 = 0;
+      double L2 = 0;
+      for (int j = 0; j < (int)points.size(); ++j)
+      {
+        if (T(0, j) == 0)
+        {
+          L1 -= std::log(1 - Z(0, j));
+          L2 += std::log(1 - Z(0, j));
+        }
+        else
+        {
+          L1 -= std::log(Z(0, j));
+          L2 -= std::log(Z(0, j));
+        }
+      }
       weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), epoch);
       std::cout << "W = " << W << "; slope = " << (-W(0,0)/W(0,1)) << std::endl;
+      std::cout << "loss = " << L1 << " / " << L2 << std::endl;
+      // Calculate the *actual* loss function that this was derived from:
+   // z = σ(WX)
+
+      // From README.binary_classification, we have
+      //
+      //   L = -Log(likeliness) = - 𝚺 ⧼N_greenᵢ Log(P_greenᵢ) + N_redᵢ Log(P_redᵢ)⧽
+      //                            i
+      //
+      // where i runs over the grid columns (xᵢ = i Δx), and P_greenᵢ is the
+      // predicted probability that a point at xᵢ is green, and N_greenᵢ is
+      // the number of points at xᵢ that are actually green (the target color).
+      // Visa versa for red.
+      //
+      // In this case we're not working anymore with probability densities,
+      // but with samples and targets. Therefore,
+      //
+      //   L = -Log(likeliness) = - 𝚺 ⧼N_greenₛ Log(P_greenₛ) + N_redₛ Log(P_redₛ)⧽
+      //                            s
+      //
+      //   P_greenₛ = σ(W·Xₛ)    ; predicted probability that the point at Xₛ is green.
+      //   P_redₛ = 1 - P_greenₛ
+      //   N_greenₛ = tₛ         ; only add this term if it's a green point.
+      //   N_redₛ = 1 - N_greenₛ
+
+      float_type L = 0;
+      for (int j = 0; j < (int)points.size(); ++j)      // j runs over the samples (aka, it's the ₛ above).
+      {
+        float_type z = sigmoid(V(0, j));
+        if (T(0, j) == 0)
+          L -= std::log(1 - z);
+        else
+          L -= std::log(z);
+      }
+      std::cout << "-Log(likeliness) = " << L << "; /L1 = " << (L / L1) << std::endl;
+
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
   }
