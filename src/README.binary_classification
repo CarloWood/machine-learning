@@ -233,6 +233,46 @@ In other words, the prediction is:
     ╰──────────────────────────╯
 
 
+Understanding the signs
+=======================
+
+Let the line equation be W·X = 0, where X = (x₀, x₁, 1) and W = (w₀, w₁, w₂).
+Note w₂ here plays the role of the bias, called b above. In this case X stands
+for "points on the line".
+
+Hence, w₀ x₀ + w₁ x₁ + w₂ = 0. The vector N' = (w₀, w₁) is normal to the line.
+Let N = (w₀, w₁, 0), so that it can be added and subtracted from X or P vectors
+without influencing the added '1', which is necessary to deal with the bias
+correctly.
+
+If adding kN to a point P makes it end up on the line, then k is called the
+'signed distance' in units of N. Let d = k|N|, then d is just the signed
+distance (and |d| the actual (positive) distance).
+
+W·X is what is fed into the sigmoid activation function (in this case X stands
+for the input of the neuron, aka - an arbitrary point; and W·X will only be
+zero for points X on the line). The output of that activation function is the
+density of green points (or the probability that a given point is green) (by
+definition). Thus, the larger the value of W·X to more we strayed from the line
+into the green area.
+
+Adding N to a point X on the line causes W·X to become larger: let X be a point
+on the line (so W·X = 0), then add N to it to get P: P = X + N. Then the
+value of W·P = W·(X + N) = W·X + W·N = W·N = w₀ w₀ + w₁ w₁ + w₂ 0 = |N|.
+Conclusion: the normal N points in the direction of the green area.
+
+Decreasing the value of w₂ therefore moves the line into the green area:
+Let P = X + N, where X is on the old line (as above) then a line through
+P would have the equation: W·P = w₀ p₀ + w₁ p₁ + w₂' = 0, where p₀ = x₀+w₀,
+p₁ = x₁+w₁ (because P = X + N) and w₂' = w₂ + Δw₂. Hence
+
+  0 = w₀(x₀+w₀) + w₁(x₁+w₁) + (w₂+Δw₂) =
+    = w₀x₀ + w₁x₁ + w₂ + w₀w₀ + w₁w₁ + Δw₂ =
+    = 0                + |N|         + Δw₂
+
+Thus Δw₂ = -|N| : decreasing the value of w₂ causes the line to move into
+the direction of N, into the green area.
+
 A simplification
 ================
 

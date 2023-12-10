@@ -4,6 +4,7 @@
 #include <cmath>
 #include <random>
 #include <utility>
+#include <thread>
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -110,10 +111,8 @@ class Line
   }
 
   // Return W as a row vector.
-  Tensor<2> const& W() const
-  {
-    return W_;
-  }
+  Tensor<2> const& W() const { return W_; }
+  Tensor<2>& W() { return W_; }
 
   // Return a normal vector with length 1/s.
   Vector N() const
@@ -129,8 +128,8 @@ class Line
   {
     Vector result({2});
     float_type s = scale_factor();
-    result(0) = -3 * sd1 * s;
-    result(1) = 3 * sd1 * s;
+    result(0) = -6 * sd1 * s;
+    result(1) = 6 * sd1 * s;
     return result;
   }
 
@@ -138,12 +137,12 @@ class Line
   {
     Vector result({2});
     float_type s = scale_factor();
-    result(0) = -3 * sd1 * s;
-    result(1) = 3 * sd1 * s;
+    result(0) = -6 * sd1 * s;
+    result(1) = 6 * sd1 * s;
     return result;
   }
 
-  bool draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, double y_max) const;
+  void draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, double y_max, int epoch) const;
 
   void print_on(std::ostream& os) const
   {
@@ -158,7 +157,7 @@ class Line
   }
 };
 
-bool Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, double y_max) const
+void Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, double y_max, int epoch) const
 {
   float_type s = scale_factor();
   for (int sd = -1; sd <= 1; ++sd)
@@ -167,35 +166,35 @@ bool Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, doub
     intersections::HyperBlock<float_type, 2> rectangle({x_min, y_min}, {x_max, y_max});
 
     auto intersections = rectangle.intersection_points(line);
-    if (intersections.size() < 2)
-      return false;
     if (intersections.size() != 2)
-    {
-      for (int i = 0; i < (int)intersections.size(); ++i)
-        std::cout << intersections[i][0] << ", " << intersections[i][1] << std::endl;
-    }
+      continue;
 
-    {
-      std::ostringstream oss;
-      oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
-        " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead";
-      gnuplot_cmd(h1, oss.str().c_str());
-    }
+    std::ostringstream oss;
+    oss << "set arrow from " << intersections[0][0] << ", " << intersections[0][1] <<
+      " to " << intersections[1][0] << ", " << intersections[1][1] << " nohead front";
+    if (epoch == 0)
+      oss << " ls 2";
+
+    // Decreasing w₂ moves a line into the green area.
+    char const* color = (sd == -1) ? "green" : (sd == 0) ? "blue" : "red";
+    std::ostringstream oss_color;
+    oss_color << "set style line 2 lt 1 lc rgb \"" << color << "\"";
+    if (epoch == 0)
+      oss_color << " lw 2";
+    else
+      oss_color << " lw 1";
+    gnuplot_cmd(h1, oss_color.str().c_str());
+
+    gnuplot_cmd(h1, oss.str().c_str());
   }
-  gnuplot_cmd(h1, "set style line 1 lt 1 lc rgb \"purple\" lw 1");
-  gnuplot_cmd(h1, "set grid back ls 1");
-  gnuplot_cmd(h1, "set xtics 1");
-  gnuplot_cmd(h1, "set ytics 1");
   {
     std::ostringstream oss;
     double distance = std::abs(W_(0, 2) * s);
-    oss << "set object 1 circle at 0,0 size " << distance << " fc rgb \"purple\" lw 1";
+    oss << "set object " << (epoch + 1) << " circle at 0,0 size " << distance << " fc rgb \"purple\" lw 1 front";
     gnuplot_cmd(h1, oss.str().c_str());
   }
   gnuplot_cmd(h1, "set size ratio -1");
   gnuplot_cmd(h1, "replot NaN");
-
-  return true;
 }
 
 std::vector<Vector> generate_points(RandomGenerator& generator, Line const& line, int number_of_points)
@@ -237,7 +236,11 @@ std::vector<Color> generate_colors(RandomGenerator& generator, Line const& line,
   // Thus W·(P + kN) = 0 --> W·P + kW·N = 0 --> k = -W·P/W·N.
   // Note that W·N = w₀² + w₁² + w₂·0 = 1/s².
   // Hence, the real signed distance is k/s = -W·P s.
-  // Finally, we have to devide the real distance by s before passing it to the sigmoid function.
+  // Finally, we have to devide the real distance by s before passing
+  // it to the sigmoid function AND we have to negate the sign of k,
+  // because the larger k the further the point P was in to the red area
+  // and we need to pass the distance that we ventured into the green area
+  // to the sigmoid function.
   //
   // Calculate the scalar WN:
   Tensor W = line.W();                          // Row vector with shape {1,3}.
@@ -245,7 +248,7 @@ std::vector<Color> generate_colors(RandomGenerator& generator, Line const& line,
   for (Vector const& P : points)
   {
     float_type WP = contract(W, P, 1, 0)(0);    // W is a row vector, we have to run over its columns.
-    float_type threshold = sigmoid(-WP);
+    float_type threshold = sigmoid(WP);
     targets.push_back((color_dist(generator) < threshold) ? green : red);
 //    targets.push_back(((P(1) - yr(0))/(yr(1) - yr(0)) < threshold) ? green : red);
   }
@@ -253,7 +256,7 @@ std::vector<Color> generate_colors(RandomGenerator& generator, Line const& line,
   return targets;
 }
 
-void plot(Line const& line, std::vector<Vector> const& points, std::vector<Color> const& targets)
+gnuplot_ctrl* plot(Line const& line, std::vector<Vector> const& points, std::vector<Color> const& targets)
 {
   assert(points.size() == targets.size());
   std::array<std::vector<double>, 2> xp;
@@ -269,6 +272,10 @@ void plot(Line const& line, std::vector<Vector> const& points, std::vector<Color
   // GNU plot handle.
   gnuplot_ctrl* h1 = gnuplot_init();
   gnuplot_cmd(h1, "unset key");
+  gnuplot_cmd(h1, "set style line 1 lt 1 lc rgb \"purple\" lw 1");
+  gnuplot_cmd(h1, "set grid back ls 1");
+  gnuplot_cmd(h1, "set xtics 1");
+  gnuplot_cmd(h1, "set ytics 1");
 
   // Draw the red points.
   gnuplot_setstyle(h1, "points");
@@ -290,12 +297,9 @@ void plot(Line const& line, std::vector<Vector> const& points, std::vector<Color
   yrange_ss << "set yrange [" << yrange(0) << ':' << yrange(1) << ']';
   gnuplot_cmd(h1, yrange_ss.str().c_str());
 
-  bool success = line.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1));
+  line.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), 0);
 
-  // Close plot window.
-  if (success)
-    std::cin.get();
-  gnuplot_close(h1);
+  return h1;
 }
 
 int main()
@@ -304,6 +308,7 @@ int main()
   RandomGenerator seed_generator(rd());
   std::uniform_int_distribution<int> seed_dist(0, 10000);
   int seed = seed_dist(seed_generator);
+  seed = 9370;
   std::cout << "seed = " << seed << std::endl;
   RandomGenerator generator(seed);
 
@@ -313,5 +318,64 @@ int main()
   std::vector<Vector> points = generate_points(generator, line, 5000);
   std::vector<Color> targets = generate_colors(generator, line, points);
 
-  plot(line, points, targets);
+  Tensor<2> X({3, (int)points.size()});
+  Tensor<2> T({1, (int)targets.size()});
+
+  int j = 0;
+  for (Vector const& point : points)
+  {
+    X(0, j) = point(0);
+    X(1, j) = point(1);
+    X(2, j) = 1;
+    ++j;
+  }
+  j = 0;
+  for (Color const& color : targets)
+  {
+    T(0, j) = color.is_green();
+    ++j;
+  }
+
+  Vector xrange = line.xrange();
+  Vector yrange = line.yrange();
+
+  auto h1 = plot(line, points, targets);
+
+  // Generate random weights and bias as starting point.
+  Line weight_bias(generator);
+  Tensor<2>& W = weight_bias.W();
+  weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), 1);
+
+  Function activation{[](float_type u){ return float_type{1} / (float_type{1} + std::exp(-u)); }};
+
+  for (int epoch = 1; epoch < 10000; ++epoch)
+  {
+    // Calculate weights and bias applied to inputs.
+    Tensor<2> V = contract(W, X, 1, 0);
+
+    // Apply activation function on that.
+    Tensor<2> Z = activation(V);
+
+    // Calculate initial delta, which is equal to the residual.
+    Tensor<2> delta = Z - T;
+
+    // Calculate the gradient matrix.
+    Tensor<2> G = contract(delta, X, 1, 1);
+
+    //std::cout << "G = " << G << std::endl;
+
+    // Next epoch.
+    W -= (0.1 / points.size()) * G;
+
+    if ((epoch % 100) == 0)
+    {
+      weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), epoch);
+      std::cout << "W = " << W << "; slope = " << (-W(0,0)/W(0,1)) << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+  }
+
+  // Close plot window.
+  std::cin.get();
+  gnuplot_close(h1);
 }

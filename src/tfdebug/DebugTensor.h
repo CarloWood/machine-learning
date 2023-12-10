@@ -137,6 +137,20 @@ class Tensor
     return *this;
   }
 
+  Tensor& operator*=(FloatType alpha)
+  {
+    for (Flat::iterator elem = flat_.begin(); elem != flat_.end(); ++elem)
+      *elem *= alpha;
+    return *this;
+  }
+
+  friend Tensor operator*(FloatType alpha, Tensor const& tensor)
+  {
+    Tensor result(tensor);
+    result *= alpha;
+    return result;
+  }
+
   void print_on(std::ostream& os, int fi_offset, int d) const
   {
     if (d == 0) // Scalar
