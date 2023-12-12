@@ -517,9 +517,6 @@ that I also could guess it after numerically calculating it (again, see likeline
 
 After that it wasn't that hard to guess the complete function too:
 
-  long double g_weight_ratio_0 = integral_sigma_log_sigma(weight_ratio);
-  return g_weight_ratio_0 - 0.25L / weight_ratio * bias_error * bias_error;
-
                             -π² ⎛ w₁   wₐ ⎞   (b - bₐ w₁/wₐ)²
   g(w₁/wₐ, b - bₐ w₁/wₐ) = ⎼⎼⎼⎼ ⎢ ⎼⎼ + ⎼⎼ ⎥ - ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
                             12  ⎝ wₐ   w₁ ⎠      4 (w₁/wₐ)
