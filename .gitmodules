@@ -16,4 +16,5 @@
 	branch = master
 [submodule "cairowindow"]
 	path = cairowindow
-	url = ./cairowindow
+	url = https://github.com/CarloWood/cairowindow.git
+        branch = master
