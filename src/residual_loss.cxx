@@ -314,6 +314,7 @@ int main()
   std::uniform_int_distribution<int> seed_dist(0, 10000);
   int seed = seed_dist(seed_generator);
 //  seed = 9370;
+  seed = 5061;
   std::cout << "seed = " << seed << std::endl;
   RandomGenerator generator(seed);
 
@@ -344,16 +345,46 @@ int main()
   Vector xrange = line.xrange();
   Vector yrange = line.yrange();
 
-  auto h1 = plot(line, points, targets);
+//  auto h1 = plot(line, points, targets);
 
   // Generate random weights and bias as starting point.
-  Line weight_bias(generator);
+  //Line weight_bias(generator);
+  Line weight_bias(line);
   Tensor<2>& W = weight_bias.W();
-  weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), 1);
+//  weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), 1);
 
   Function activation{[](float_type u){ return float_type{1} / (float_type{1} + std::exp(-u)); }};
 
   std::cout.precision(std::numeric_limits<float_type>::digits10 + 1);
+
+  gnuplot_ctrl* h2 = gnuplot_init();
+  gnuplot_cmd(h2, "unset key");
+  for (int j = 0; j <= 2; ++j)
+  {
+    std::vector<double> x;
+    std::vector<double> y;
+    float_type Wj = W(0, j);
+    for (float_type delta_Wj = -0.07; delta_Wj <= 0.05; delta_Wj += 0.0025)
+    {
+      W(0, j) = Wj + delta_Wj;
+      Tensor<2> V = contract(W, X, 1, 0);
+      float_type L = 0;
+      for (int s = 0; s < (int)points.size(); ++s)
+      {
+        float_type z = sigmoid(V(0, s));
+        if (T(0, s) == 0)
+          L -= std::log(1 - z);
+        else
+          L -= std::log(z);
+      }
+      x.push_back(W(0, j));
+      y.push_back(L);
+    }
+    gnuplot_setstyle(h2, "lines");
+    std::ostringstream title;
+    title << "L(w" << j << ")";
+    gnuplot_plot_coordinates(h2, x.data(), y.data(), x.size(), title.str().c_str());
+  }
 
   for (int epoch = 1; epoch < 10000; ++epoch)
   {
@@ -372,25 +403,21 @@ int main()
 
     //std::cout << "G = " << G << std::endl;
 
-    // Next epoch.
-    W -= (0.2 / points.size()) * G;
-
     if ((epoch % 1) == 0)
     {
       // L = - 𝚺 (tₛ Log(zₛ) + (1 - tₛ) Log(1 - zₛ))
       float_type L1 = 0;
-      for (int j = 0; j < (int)points.size(); ++j)
+      for (int s = 0; s < (int)points.size(); ++s)
       {
-        if (T(0, j) == 0)
-          L1 -= std::log(1 - Z(0, j));
+        if (T(0, s) == 0)
+          L1 -= std::log(1 - Z(0, s));
         else
-          L1 -= std::log(Z(0, j));
+          L1 -= std::log(Z(0, s));
       }
-      weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), epoch);
+//      weight_bias.draw(h1, xrange(0), yrange(0), xrange(1), yrange(1), epoch);
       std::cout << "W = " << W << "; slope = " << (-W(0,0)/W(0,1)) << std::endl;
       std::cout << "Binary cross-entropy loss = " << L1 << std::endl;
       // Calculate the *actual* loss function that this was derived from:
-   // z = σ(WX)
 
       // From README.binary_classification, we have
       //
@@ -414,10 +441,10 @@ int main()
       //   N_redₛ = 1 - N_greenₛ
 
       float_type L = 0;
-      for (int j = 0; j < (int)points.size(); ++j)      // j runs over the samples (aka, it's the ₛ above).
+      for (int s = 0; s < (int)points.size(); ++s)
       {
-        float_type z = sigmoid(V(0, j));
-        if (T(0, j) == 0)
+        float_type z = sigmoid(V(0, s));
+        if (T(0, s) == 0)
           L -= std::log(1 - z);
         else
           L -= std::log(z);
@@ -425,11 +452,26 @@ int main()
       std::cout << "-Log(likeliness) = " << L << "; /L1 = " <<
         std::setprecision(std::numeric_limits<FloatType>::digits10) << (L / L1) << std::endl;
 
+      for (int j = 0; j <= 2; ++j)
+      {
+        double x = W(0,j);
+        double y = L;
+        gnuplot_setstyle(h2, "points");
+        std::cout << "x = " << x << ", y = " << y << std::endl;
+        gnuplot_plot_coordinates(h2, &x, &y, 1, nullptr);
+      }
+
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
+
+    // Next epoch.
+//    G(0,0) = 0;
+//    G(0,2) = 0;
+    W -= (0.01 / points.size()) * G;
   }
 
   // Close plot window.
   std::cin.get();
-  gnuplot_close(h1);
+//  gnuplot_close(h1);
+  gnuplot_close(h2);
 }

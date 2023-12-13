@@ -10,3 +10,10 @@
 	path = gnuplot_i
 	url = https://github.com/CarloWood/gnuplot_i.git
 	branch = master
+[submodule "utils"]
+	path = utils
+	url = https://github.com/CarloWood/ai-utils.git
+	branch = master
+[submodule "cairowindow"]
+	path = cairowindow
+	url = ./cairowindow
