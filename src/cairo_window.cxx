@@ -21,15 +21,12 @@ int main()
 
     // Open window, handle event loop and block until the window is closed.
     EventLoop event_loop = window.run();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    Rectangle rect = window.get_rect();
 
     // Create a new layer with a white background that is smaller than the current window.
-    Layer background = window.create_background_layer({1, 1, 1});
+    Layer& background = window.create_background_layer({1, 1, 1});
 
     // Create another layer.
-    Layer green_rectangle = window.create_layer();
+    Layer& green_rectangle = window.create_layer();
 
     green_rectangle.draw([](cairo_t* cr) -> Rectangle {
       cairo_set_source_rgb(cr, 0, 255, 0); // Green color for drawing.
