@@ -23,12 +23,12 @@ int main()
     EventLoop event_loop = window.run();
 
     // Create a new layer with a white background that is smaller than the current window.
-    Layer& background = window.create_background_layer({1, 1, 1});
+    auto background = window.create_background_layer<Layer>(Color{1, 1, 1});
 
     // Create another layer.
-    Layer& green_rectangle = window.create_layer();
+    auto green_rectangle = window.create_layer<Layer>();
 
-    green_rectangle.draw([](cairo_t* cr) -> Rectangle {
+    green_rectangle->draw([](cairo_t* cr) -> Rectangle {
       cairo_set_source_rgb(cr, 0, 255, 0); // Green color for drawing.
       cairo_set_line_width(cr, 2);
       cairo_move_to(cr, 350, 250);
@@ -41,7 +41,7 @@ int main()
     });
 
     // Draw something on the background layer.
-    background.draw([](cairo_t* cr) -> Rectangle {
+    background->draw([](cairo_t* cr) -> Rectangle {
       cairo_set_source_rgb(cr, 255, 0, 0); // Red color for drawing.
       cairo_set_line_width(cr, 2);
       cairo_move_to(cr, 50, 50);
