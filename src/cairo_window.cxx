@@ -1,5 +1,6 @@
 #include "sys.h"
 #include "cairowindow/Window.h"
+#include "cairowindow/Layer.h"
 #include "utils/AIAlert.h"
 #include "utils/debug_ostream_operators.h"
 #include <thread>
@@ -22,13 +23,14 @@ int main()
     // Open window, handle event loop and block until the window is closed.
     EventLoop event_loop = window.run();
 
-    // Create a new layer with a white background that is smaller than the current window.
-    auto background = window.create_background_layer<Layer>(Color{1, 1, 1});
+    // Create a new layer with a white background.
+    auto background_layer = window.create_background_layer<Layer>(Color{1, 1, 1});
 
     // Create another layer.
-    auto green_rectangle = window.create_layer<Layer>();
+    auto second_layer = window.create_layer<Layer>(Rectangle{100, 100, 600, 400});
 
-    green_rectangle->draw([](cairo_t* cr) -> Rectangle {
+    auto green_square = second_layer->create_layer_region<LayerRegion>();
+    green_square->draw([](cairo_t* cr) -> Rectangle {
       cairo_set_source_rgb(cr, 0, 255, 0); // Green color for drawing.
       cairo_set_line_width(cr, 2);
       cairo_move_to(cr, 350, 250);
@@ -41,7 +43,8 @@ int main()
     });
 
     // Draw something on the background layer.
-    background->draw([](cairo_t* cr) -> Rectangle {
+    auto red_square = background_layer->create_layer_region<LayerRegion>();
+    red_square->draw([](cairo_t* cr) -> Rectangle {
       cairo_set_source_rgb(cr, 255, 0, 0); // Red color for drawing.
       cairo_set_line_width(cr, 2);
       cairo_move_to(cr, 50, 50);
