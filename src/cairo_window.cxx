@@ -26,24 +26,31 @@ int main()
     EventLoop event_loop = window.run();
 
     // Create a new layer with a gray background.
-    auto background_layer = window.create_background_layer<Layer>(color::gray);
+    auto background_layer = window.create_background_layer<Layer>(color::gray COMMA_DEBUG_ONLY("background_layer"));
 
     // Create another layer.
-    auto second_layer = window.create_layer<Layer>(Rectangle{100, 100, 600, 400});
+    auto second_layer = window.create_layer<Layer>(Rectangle{100, 100, 600, 400} COMMA_DEBUG_ONLY("second_layer"));
+
+    auto red_square = background_layer->create_layer_region<draw::Rectangle>(Rectangle{50, 50, 350, 250}, color::red);
+    auto blue_line = second_layer->create_layer_region<draw::Line>(Rectangle{350, 250, 100, 100}, color::blue);
 
     // It doesn't really matter if you destroy the draw::Rectangle afterwards, at the moment.
     {
       auto green_square = second_layer->create_layer_region<draw::Rectangle>(Rectangle{350, 250, 100, 100}, color::green);
       green_square->draw();
+
+      // Draw something on the background layer.
+      red_square->draw();
+
+      // Draw a line.
+      blue_line->draw();
+
+      Dout(dc::notice, "Leaving scope");
     }
+    Dout(dc::notice, "Left scope");
 
-    // Draw something on the background layer.
-    auto red_square = background_layer->create_layer_region<draw::Rectangle>(Rectangle{50, 50, 350, 250}, color::red);
-    red_square->draw();
-
-    // Draw a line.
-    auto blue_line = second_layer->create_layer_region<draw::Line>(Rectangle{350, 250, 100, 100}, color::blue);
-    blue_line->draw();
+    // Wait for a key-press.
+    std::cin.get();
 
     // Wait for the event loop thread to be finished (the window closed).
     event_loop.set_cleanly_terminated();

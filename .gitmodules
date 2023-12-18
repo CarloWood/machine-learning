@@ -18,3 +18,7 @@
 	path = cairowindow
 	url = https://github.com/CarloWood/cairowindow.git
         branch = master
+[submodule "threadsafe"]
+	path = threadsafe
+	url = https://github.com/CarloWood/threadsafe.git
+	branch = master
