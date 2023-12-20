@@ -3,6 +3,7 @@
 #include "cairowindow/Layer.h"
 #include "cairowindow/draw/Rectangle.h"
 #include "cairowindow/draw/Line.h"
+#include "cairowindow/draw/Axes.h"
 #include "utils/AIAlert.h"
 #include "utils/debug_ostream_operators.h"
 #include <thread>
@@ -29,19 +30,23 @@ int main()
     auto background_layer = window.create_background_layer<Layer>(color::gray COMMA_DEBUG_ONLY("background_layer"));
 
     // Draw something on the background layer.
-    auto red_square = background_layer->create_layer_region<draw::Rectangle>(Rectangle{50, 50, 350, 250}, color::red);
-    red_square->draw();
+    auto red_square = std::make_unique<draw::Rectangle>(Rectangle{50, 50, 350, 250}, color::red);
+    background_layer->draw(red_square);
 
     // Create another layer.
     auto second_layer = window.create_layer<Layer>(Rectangle{100, 100, 600, 400} COMMA_DEBUG_ONLY("second_layer"));
 
     // Draw a line.
-    auto blue_line = second_layer->create_layer_region<draw::Line>(Rectangle{350, 250, 100, 100}, color::blue);
-    blue_line->draw();
+    draw::Line blue_line({350, 250, 100, 100}, color::blue);
+    second_layer->draw(&blue_line);
 
-    // Draw a green square.
-    auto green_square = second_layer->create_layer_region<draw::Rectangle>(Rectangle{350, 250, 100, 100}, color::green);
-    green_square->draw();
+    // Create and draw a green square.
+    auto green_square = std::make_unique<draw::Rectangle>(Rectangle{350, 250, 100, 100}, color::green);
+    second_layer->draw(green_square);
+
+    // Create and draw plot axes.
+    draw::Axes axes({49.5, 9.5, 701, 541}, color::black);
+    background_layer->draw(&axes);
 
     // Wait for a key-press.
     std::cin.get();
