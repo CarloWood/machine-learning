@@ -3,7 +3,7 @@
 #include "cairowindow/Layer.h"
 #include "cairowindow/draw/Rectangle.h"
 #include "cairowindow/draw/Line.h"
-#include "cairowindow/draw/Axes.h"
+#include "cairowindow/draw/PlotArea.h"
 #include "utils/AIAlert.h"
 #include "utils/debug_ostream_operators.h"
 #include <thread>
@@ -23,9 +23,6 @@ int main()
     // Create a window.
     Window window("My window", 800, 600);
 
-    // Open window, handle event loop and block until the window is closed.
-    EventLoop event_loop = window.run();
-
     // Create a new layer with a gray background.
     auto background_layer = window.create_background_layer<Layer>(color::gray COMMA_DEBUG_ONLY("background_layer"));
 
@@ -44,14 +41,16 @@ int main()
     auto green_square = std::make_unique<draw::Rectangle>(Rectangle{350, 250, 100, 100}, color::green);
     second_layer->draw(green_square);
 
-    // Create and draw plot axes.
-    draw::Axes axes({49.5, 9.5, 701, 541}, color::black);
-    background_layer->draw(&axes);
+    // Create and draw plot area.
+    draw::PlotArea plot_area({49.5, 9.5, 701, 541}, color::black, 2.0);
+    plot_area.set_range(plot::x_axis, 0, 10);
+    plot_area.set_range(plot::y_axis, -10, 20);
+    background_layer->draw(&plot_area);
 
-    // Wait for a key-press.
-    std::cin.get();
+    // Open window, handle event loop. This must be constructed after the draw stuff, so that it is destructed first!
+    // Upon destruction it blocks until the event loop thread finished (aka, the window was closed).
+    EventLoop event_loop = window.run();
 
-    // Wait for the event loop thread to be finished (the window closed).
     event_loop.set_cleanly_terminated();
   }
   catch (AIAlert::Error const& error)
