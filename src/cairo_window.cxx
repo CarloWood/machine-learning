@@ -55,7 +55,7 @@ int main()
 //    auto text = std::make_unique<draw::Text>("Hello world", draw::centered_below, 350, 350, draw::TextStyle{.font_size = 24.0});
 //    second_layer->draw(text);
 
-    plot::Plot plot(window.geometry(), {},
+    plot::Plot plot(window.geometry(), {.grid = {.color = color::orange}},
         "This is the plot title", {},
         "x", {},
         "y", {});
