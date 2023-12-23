@@ -24,7 +24,7 @@ int main()
     Window window("My window", 800, 600);
 
     // Create a new layer with a gray background.
-    auto background_layer = window.create_background_layer<Layer>(color::gray COMMA_DEBUG_ONLY("background_layer"));
+    auto background_layer = window.create_background_layer<Layer>(color::white COMMA_DEBUG_ONLY("background_layer"));
 
 #if 0
     // Draw something on the background layer.
@@ -60,7 +60,7 @@ int main()
         "x", {},
         "y", {});
     plot.set_xrange({0, 10});
-    plot.set_yrange({-0.5, 0.5});
+    plot.set_yrange({-2.5, 2.5});
     plot.add_to(second_layer);
 
     // Open window, handle event loop. This must be constructed after the draw stuff, so that it is destructed first!
