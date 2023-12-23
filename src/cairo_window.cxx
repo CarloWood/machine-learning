@@ -56,9 +56,11 @@ int main()
 //    second_layer->draw(text);
 
     plot::Plot plot(window.geometry(), {},
-        "This is a plot title", {},
-        "time till doomsday", {},
-        "deaths [millions]", {});
+        "This is the plot title", {},
+        "x", {},
+        "y", {});
+    plot.set_xrange({0, 10});
+    plot.set_yrange({-0.5, 0.5});
     plot.add_to(second_layer);
 
     // Open window, handle event loop. This must be constructed after the draw stuff, so that it is destructed first!
