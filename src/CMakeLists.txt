@@ -28,7 +28,7 @@ add_executable(likeliness likeliness.cxx)
 target_link_libraries(likeliness gnuplot_i::gnuplot_i)
 
 add_executable(residual_loss residual_loss.cxx)
-target_link_libraries(residual_loss gnuplot_i::gnuplot_i)
+target_link_libraries(residual_loss gnuplot_i::gnuplot_i ${AICXX_OBJECTS_LIST} ${CAIRO_LDFLAGS} ${X11_LDFLAGS})
 
 add_executable(cairo_window cairo_window.cxx)
 target_compile_options(cairo_window PRIVATE ${CAIRO_CFLAGS} ${X11_CFLAGS})
