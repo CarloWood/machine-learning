@@ -39,7 +39,7 @@ int main()
     using Window = cairowindow::Window;
 
     // Create a window.
-    Window window("Parallel lines 2", 1200, 900);
+    Window window("Intersecting lines", 1200, 900);
 
     // Create a new layer with a gray background.
     auto background_layer = window.create_background_layer<Layer>(color::white COMMA_DEBUG_ONLY("background_layer"));
@@ -211,7 +211,7 @@ int main()
 
       // Create plot object.
       plot::Plot plot(window.geometry(), { .grid = {.color = color::orange} },
-          "Parallel lines 2", {},
+          "Intersecting lines", {},
           "x", {},
           "y", {});
       // Set ranges.
