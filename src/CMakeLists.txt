@@ -34,6 +34,10 @@ add_executable(cairo_window cairo_window.cxx)
 target_compile_options(cairo_window PRIVATE ${CAIRO_CFLAGS} ${X11_CFLAGS})
 target_link_libraries(cairo_window ${AICXX_OBJECTS_LIST} ${CAIRO_LDFLAGS} ${X11_LDFLAGS})
 
+add_executable(quadratic_bezier quadratic_bezier.cxx)
+target_compile_options(quadratic_bezier PRIVATE ${CAIRO_CFLAGS} ${X11_CFLAGS})
+target_link_libraries(quadratic_bezier ${AICXX_OBJECTS_LIST} ${CAIRO_LDFLAGS} ${X11_LDFLAGS})
+
 add_subdirectory(tfdebug)
 add_subdirectory(intro)
 add_subdirectory(ops)

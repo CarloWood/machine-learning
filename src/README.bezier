@@ -10,7 +10,7 @@ Note that X(0) = P₀ (by design) (writing t here instead of u,
 see below; but of course t=0 <--> u=0).
 
      ╭─────────────────────────────────────────────╮
-     │ we are in point P₀ of the parabola when t=0 │
+     │ We are in point P₀ of the parabola when t=0 │
      ╰─────────────────────────────────────────────╯
 
 Lets investigate when the parabola is not rotated.
@@ -63,18 +63,18 @@ which *is* a general parabola. The derivative is:
 which is zero when x = (2Px₀/a³ - c/a) / (2/a³) = Px₀ - ca²/2
 
 
-Introducing a "width" w = a^(3/2), and a "shift" s = -c/2 w^(1/3),
+Introducing a "width" w = a^(3/2), and a "shift" v = -c/2 w^(1/3),
 we can write for the unrotated parabola (1b) case:
 
       ⎡    w^(2/3)          0⎤
- M' = ⎣-2s w^(-1/3)  w^(-2/3)⎦
+ M' = ⎣-2v w^(-1/3)  w^(-2/3)⎦
 
 and
 
   x(u) = Px₀ +    w^(2/3)  u
-  y(u) = Py₀ - 2s w^(-1/3) u + w^(-2/3) u²
+  y(u) = Py₀ - 2v w^(-1/3) u + w^(-2/3) u²
 
-If s=0 then P₀ corresponds to the vertex of the parabola (the
+If v=0 then P₀ corresponds to the vertex of the parabola (the
 point where the curvature has its extreme). In this case
 
       ⎡   w^(2/3)          0⎤
@@ -98,10 +98,10 @@ which is clearly the case when x(u) = Px₀, which in turn is for u=0,
 and thus y(u) = y(0) = Py₀.
 
      ╭───────────────────────────────────────────╮
-     │ The vertex of the parabola is P₀ when s=0 │
+     │ The vertex of the parabola is P₀ when v=0 │
      ╰───────────────────────────────────────────╯
 
-For other values of s, the curve shifts along P₀, but does not change
+For other values of v, the curve shifts along P₀, but does not change
 shape (or rotation). Aka, the "width" stays the same.
 
 The "width" w corresponds to the amount we have to add to the
@@ -115,45 +115,45 @@ faster for wider parabola's.
 
 This gives:
   x(u) = Px₀ + u (    w^(2/3)  +        0 u) = Px₀ +    w^(2/3)  u
-  y(u) = Py₀ + u (-2s w^(-1/3) + w^(-2/3) u) = Py₀ - 2s w^(-1/3) u + w^(-2/3) u²
+  y(u) = Py₀ + u (-2v w^(-1/3) + w^(-2/3) u) = Py₀ - 2v w^(-1/3) u + w^(-2/3) u²
 
   x(t) = Px₀ +    w^(2/3)  (w^(1/3) t)                         = Px₀ + w t
-  y(t) = Py₀ - 2s w^(-1/3) (w^(1/3) t) + w^(-2/3) (w^(1/3) t)² = Py₀ - 2s t + t²
+  y(t) = Py₀ - 2v w^(-1/3) (w^(1/3) t) + w^(-2/3) (w^(1/3) t)² = Py₀ - 2v t + t²
 
 Note that with this substitution we have
 
               ⎡w   0⎤⎡t ⎤
-  X(t) = P₀ + ⎣-2s 1⎦⎣t²⎦
+  X(t) = P₀ + ⎣-2v 1⎦⎣t²⎦
 
 and the "unrotated" matrix,
 
         ⎡  w  0 ⎤
-  M'' = ⎣ -2s 1 ⎦
+  M'' = ⎣ -2v 1 ⎦
 
 no longer has a determinant of 1!
 
-The derivate including s is therefore, using t = (x - Px₀)/w, and
-y = Py₀ - 2s (x - Px₀)/w + ((x - Px₀)/w)²
+The derivate including v is therefore, using t = (x - Px₀)/w, and
+y = Py₀ - 2v (x - Px₀)/w + ((x - Px₀)/w)²
 
-  dy/dx = -2s/w + 2(x - Px₀)/w² = -2s/w + 2t/w = 2(t - s)/w
+  dy/dx = -2v/w + 2(x - Px₀)/w² = -2v/w + 2t/w = 2(t - v)/w
 
-which is zero when t = s. In other words,
+which is zero when t = v.
 
      ╭───────────────────────────────────────────────╮
-     │ we are in the vertex of the parabola when t=s │
+     │ We are in the vertex of the parabola when t=v │
      ╰───────────────────────────────────────────────╯
 
 For example, in the unrotated case, the vertex coordinates are
 
-  x(s) = Px₀ +  w s
-  y(s) = Py₀ - 2s s + s² = Py₀ - s²
+  x(v) = Px₀ +  w v
+  y(v) = Py₀ - 2v v + v² = Py₀ - v²
 
 If we fill in that x-coordinate plus w into the generate parabola
 equation that we found:
 
-  y = Py₀ - 2s ((Px₀ +  w s + w) - Px₀)/w + (((Px₀ +  w s + w) - Px₀)/w)² =
-    = Py₀ - 2s (s + 1)                    + (s + 1)² =
-    = Py₀ - 2s² - 2s + s² + 2s + 1 = Py₀ - s² + 1 = y(s) + 1
+  y = Py₀ - 2v ((Px₀ +  w v + w) - Px₀)/w + (((Px₀ +  w v + w) - Px₀)/w)² =
+    = Py₀ - 2v (v + 1)                    + (v + 1)² =
+    = Py₀ - 2v² - 2v + v² + 2v + 1 = Py₀ - v² + 1 = y(v) + 1
 
 as it should be according to the definition of w.
 
@@ -179,65 +179,65 @@ has to stay on the curve of course, the curve equation could be replaced with:
 Thus, if we set M to RM'' then we have rotation around P₀ included.
 We now have the matrix
 
-      ⎡ w cos(θ) + 2s sin(θ)    -sin(θ) ⎤
-  M = ⎣ w sin(θ) - 2s cos(θ)     cos(θ) ⎦
+      ⎡ w cos(θ) + 2v sin(θ)    -sin(θ) ⎤
+  M = ⎣ w sin(θ) - 2v cos(θ)     cos(θ) ⎦
 
 The functions x(t) and y(t) written out then become:
 
-  x(t) = Px₀ + (w cos(θ) + 2s sin(θ)) t - sin(θ) t²
-  y(t) = Py₀ + (w sin(θ) - 2s cos(θ)) t + cos(θ) t²
+  x(t) = Px₀ + (w cos(θ) + 2v sin(θ)) t - sin(θ) t²
+  y(t) = Py₀ + (w sin(θ) - 2v cos(θ)) t + cos(θ) t²
 
 This curve passes through P₀ when t = 0.
 If we want it to pass through a point P₁ when t = 1:
 
-  Px₁ = x(1) = Px₀ + (w cos(θ) + 2s sin(θ)) - sin(θ)
-  Py₁ = y(1) = Py₀ + (w sin(θ) - 2s cos(θ)) + cos(θ)
+  Px₁ = x(1) = Px₀ + (w cos(θ) + 2v sin(θ)) - sin(θ)
+  Py₁ = y(1) = Py₀ + (w sin(θ) - 2v cos(θ)) + cos(θ)
 
 then
 
-  Px₁ - Px₀ = w cos(θ) + (2s - 1) sin(θ)
-  Py₁ - Py₀ = w sin(θ) - (2s - 1) cos(θ)
+  Px₁ - Px₀ = w cos(θ) + (2v - 1) sin(θ)
+  Py₁ - Py₀ = w sin(θ) - (2v - 1) cos(θ)
 
-  Let v = sqrt(w² + (2s - 1)²)
+  Let d = sqrt(w² + (2v - 1)²)
 
          +
         /|
        / |
       /  |
-    v/   |2s-1
+    d/   |2v-1
     /    |
    /     |
   / α    |
  +-------+
      w
 
-  2s - 1 = v sin(α)
-       w = v cos(α)
+  2v - 1 = d sin(α)
+       w = d cos(α)
 
-  Px₁ - Px₀ = v (cos(α)cos(θ) + sin(α)sin(θ)) = v cos(θ - α)
-  Py₁ - Py₀ = v (cos(α)sin(θ) - sin(α)cos(θ)) = v sin(θ - α)
+  Px₁ - Px₀ = d (cos(α)cos(θ) + sin(α)sin(θ)) = d cos(θ - α)
+  Py₁ - Py₀ = d (cos(α)sin(θ) - sin(α)cos(θ)) = d sin(θ - α)
 
   (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ - α)
 
-  |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = v
+  |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = d
 
-Lets say we want to keep s the same, then in order for the
+Lets say we want to keep v the same, then in order for the
 curve to go through P₁ at t=1, we must tune w such that
-w² + (2s - 1)² = v² = |P₁ - P₀|²
+w² + (2v - 1)² = d² = |P₁ - P₀|²
 
-  w = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)² - (2s - 1)²)
+  w = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)² - (2v - 1)²)
 
-which might not always be possible if s is too large, or
+which might not always be possible if |v| is too large, or
 the points are too close.
 
 A better way to look this relationship is that P₀ and P₁
 are w apart in the direction perpendicular to the symmetry
-line of the parabola - and a distance 2s - 1 in the direction
+line of the parabola - and a distance 2v - 1 in the direction
 parallel to the symmetry line.
 
-Most notable, when s=0 then P₀ is the vertex and P₁ lays
+Most notable, when v=0 then P₀ is the vertex and P₁ lays
 at a distance of precisely w from the symmetry line; while
-when s=1 then P₁ is the vertex and P₀ lays at a distance
+when v=1 then P₁ is the vertex and P₀ lays at a distance
 of precisely w from the symmetry line.
 
 Lets say that V is the unit vector that points along the
@@ -252,6 +252,18 @@ Let P₀P₁ be the vector from P₀ to P₁, then
 
      ╭─────────────────╮
      │ P₀P₁⋅U = w      │
-     │ P₀P₁⋅V = 1 - 2s │
+     │ P₀P₁⋅V = 1 - 2v │
      ╰─────────────────╯
 
+This means that for a fixed P₀, P₁ and rotation θ,
+both w and v are known, and hence the complete
+parabola. This can't be right because normally for
+a -say- unrotated parabola we can choose three
+arbitrary points - not only two.
+
+Setting θ=0 and v=0.5 we have an "upright" parabola
+with P₀ and P₁ at the same height (y-coordinate)
+left and right of the symmetry line. I want to stick
+to that. But, with the current formula also the width
+w of the parabola is given: namely the distance between
+P₀ and P₁. We can introduce another scale factor
