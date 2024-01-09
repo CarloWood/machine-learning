@@ -2,6 +2,7 @@
 #include "cairowindow/Window.h"
 #include "cairowindow/Layer.h"
 #include "cairowindow/Plot.h"
+#include "cairowindow/Vector.h"
 #include "cairowindow/draw/Shape.h"
 #include "cairowindow/draw/Line.h"
 #include "cairowindow/draw/Point.h"
@@ -77,10 +78,13 @@ int main()
 
     utils::ColorPool<32> color_pool;
     int color_index = color_pool.get_and_use_color();
+    int color_index2 = 3; //color_pool.get_and_use_color();
+    Dout(dc::notice, "color_index2 = " << color_index2);
     int filled_shape = 1;
     draw::PointStyle point_style(color_index, filled_shape);
     draw::TextStyle<> point_label_style{.position = draw::centered_left_of, .font_size = 18.0, .offset = 10};
     draw::LineStyle curve_line_style{.line_width = 1.0};
+    draw::LineStyle solid_line_style{.line_color = color::black, .line_width = 1.0};
     draw::LineStyle line_style{.line_color = color::black, .line_width = 1.0, .dashes = {10.0, 5.0}};
 
 //    for (int j = 0; j < 100; ++j)
@@ -105,9 +109,6 @@ int main()
       auto xt = [=](double t){ return P0.x() + t * (m00 + m01 * t); };
       auto yt = [=](double t){ return P0.y() + t * (m10 + m11 * t); };
 
-      // The distance between P₀ and P₁ is determined by w and s (see README.bezier):
-      double P0P1 = std::sqrt(w * w + (2 * s - 1) * (2 * s - 1));
-
       // Let t run from s-4 to s+4, and then plot P₀ + t M [1 t].
       std::vector<Point> curve_points;
       for (double t = s - 4.0; t <= s + 4.0; t += 0.01)
@@ -121,30 +122,47 @@ int main()
       // P₁, the point at t=1.
       auto P1 = plot.create_point(second_layer, {xt(1.0), yt(1.0)}, point_style);
       point_label_style.position = draw::centered_left_of;
-      auto P1_label = plot.create_text(second_layer, P1, "P₁", point_label_style);
+      auto P1_label = plot.create_text(second_layer, P1, "P₁", point_label_style({.position = draw::centered_right_of}));
 
       // V, the parabola vertex point resides at t=s.
       auto V = plot.create_point(second_layer, {xt(s), yt(s)}, point_style);
       point_label_style.position = draw::centered_left_of;
-      auto V_label = plot.create_text(second_layer, V, "V", point_label_style);
+      auto V_label = plot.create_text(second_layer, V, "V", point_label_style({.position = draw::centered_below}));
+
+      // Point on symmetry line at distance 1 from V.
+      Point V1 = V + symmetry_line_dir;
+      auto plot_V1 = plot.create_point(second_layer, V1, point_style);
+      auto V1_label = plot.create_text(second_layer, V1, "V1", point_label_style);
+
+      // Go from V1 a distance w left and right.
+      Point V1L = V1 + w * perpendicular_to_symmetry_line_dir;
+      Point V1R = V1 - w * perpendicular_to_symmetry_line_dir;
+      auto plot_V1L = plot.create_point(second_layer, V1L, point_style({.color_index = color_index2}));
+      auto plot_V1R = plot.create_point(second_layer, V1R, point_style({.color_index = color_index2}));
+
+      auto plot_P1R = plot.create_point(second_layer, P1 - w * perpendicular_to_symmetry_line_dir, point_style({.color_index = color_index2}));
+      auto P1R_label = plot.create_text(second_layer, plot_P1R, "P1R", point_label_style({.position = draw::centered_below}));
+      auto plot_P0_P1R = plot.create_connector(second_layer, P0, plot_P1R, line_style);
+      auto P0_P1R_label = plot.create_text(second_layer, P0 + 0.5 * Vector(P0, plot_P1R), "1-2s", point_label_style({.font_size = 12, .offset = 5}));
 
       // Helper point.
-      auto H = plot.create_point(second_layer, {P0.x(), P1.y()}, point_style);
-      auto H_label = plot.create_text(second_layer, H, "H", point_label_style);
+//      auto H = plot.create_point(second_layer, {P0.x(), P1.y()}, point_style);
+//      auto H_label = plot.create_text(second_layer, H, "H", point_label_style);
 
       // P₀.
       plot.add_point(second_layer, P0, point_style);
       point_label_style.position = draw::centered_left_of;
       auto P0_label = plot.create_text(second_layer, P0, "P₀", point_label_style);
 
-      // Draw a cirle around P₀ with radius P0P1.
-      auto circle = plot.create_circle(second_layer, P0, P0P1, line_style);
+      // Draw a cirle around the midpoint of P₀P₁ with radius |P₀P₁|/2.
+      Vector P0P1(P0, P1);
+      auto circle = plot.create_circle(second_layer, P0 + 0.5 * P0P1, P0P1.length() / 2, line_style);
 
       // Draw a line through P₁ and H (horizontal because H has the same y coordinate as P₁).
-      auto horizontal_line_through_P1_and_H = plot.create_line(second_layer, P1, H, line_style);
+//      auto horizontal_line_through_P1_and_H = plot.create_line(second_layer, P1, H, line_style);
 
       // Draw a line through P₀ and P₁.
-      auto line_through_P0_and_P1 = plot.create_line(second_layer, P0, P1, line_style);
+      auto line_through_P0_and_P1 = plot.create_line(second_layer, P0, P1, solid_line_style);
 
       // Draw a line through P₁ perpendicular to the symmetry line of the parabola.
       auto line_through_p1_perpendicular_to_symmetry_line =
@@ -154,20 +172,19 @@ int main()
       auto symmetry_line_of_parabola =
         plot.create_line(second_layer, V, symmetry_line_dir, line_style);
 
-      // Draw a line perpendicular to the symmetry line of the parabola, at a distance of 1 from V.
-      auto line_at_one_from_V = plot.create_line(second_layer,
-          Point{V.x() - std::sin(theta), V.y() + std::cos(theta)},
-          perpendicular_to_symmetry_line_dir, line_style);
-
-//    auto S5 = plot.create_point(second_layer, xt(5 * s), yt(5 * s), point_style);
+      // Draw a line between V1 and V1L.
+      auto line_at_one_from_V = plot.create_connector(second_layer,
+          V1, V1L, Connector::open_arrow, Connector::open_arrow, line_style({.line_color = color::coral, .dashes = {3.0, 3.0}}));
+      auto w_label = plot.create_text(second_layer, V1 + 0.5 * w * perpendicular_to_symmetry_line_dir,
+          "w", point_label_style({.position = draw::centered_above}));
+      // Draw a line between P₁ and P1R.
+      auto line_P1_P1R = plot.create_connector(second_layer,
+          P1, plot_P1R, Connector::open_arrow, Connector::open_arrow, line_style({.line_color = color::coral, .dashes = {3.0, 3.0}}));
+      auto w_label2 = plot.create_text(second_layer, plot_P1R + 0.5 * w * perpendicular_to_symmetry_line_dir,
+          "w", point_label_style({.position = draw::centered_above}));
 
       // Draw a line through P₀ and H (vertical because H has the same x coordinate as P₀).
-      auto vertical_line_through_P0 = plot.create_line(second_layer, P0, H, line_style);
-
-      // Draw an abitrary line through P1.
-      auto bar = plot.create_line(second_layer, P1, Direction{symmetry_line_of_parabola.direction().as_angle() + 0.01}, line_style);
-      // Draw intersection point of bar with the symmetry line:
-      auto Q = plot.create_point(second_layer, bar.intersection_with(symmetry_line_of_parabola), point_style);
+//      auto vertical_line_through_P0 = plot.create_line(second_layer, P0, H, line_style);
 
       //std::this_thread::sleep_for(std::chrono::milliseconds(100));
       std::cin.get();

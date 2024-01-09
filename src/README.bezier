@@ -1,0 +1,257 @@
+Consider the curve, which describes a, possibly rotated, parabola:
+
+              ⎡a b⎤⎡u ⎤
+  X(u) = P₀ + ⎣c d⎦⎣u²⎦                (1)
+
+           ⎡a b⎤
+where M' = ⎣c d⎦ has a determinant of 1 (det(M') = ad - cb = 1).
+
+Note that X(0) = P₀ (by design) (writing t here instead of u,
+see below; but of course t=0 <--> u=0).
+
+     ╭─────────────────────────────────────────────╮
+     │ we are in point P₀ of the parabola when t=0 │
+     ╰─────────────────────────────────────────────╯
+
+Lets investigate when the parabola is not rotated.
+
+If b != 0 we can therefore write c=(ad-1)/b:
+
+       ⎡a          b⎤
+  M' = ⎣(ad-1)/b   d⎦,   det(M') = ad - b((ad-1)/b) = ad - (ad - 1) = 1.        (1a)
+
+otherwise a must be non-zero and we can write d=1/a:
+
+       ⎡a          0⎤
+  M' = ⎣c        1/a⎦,   det(M') = a/a - 0c = 1                                 (1b)
+
+
+Writing out (1a) as two equations, one for the x-coordinate
+and one for the y-coordinate, we get:
+
+  x(u) = Px₀ + (a u + b u²)                     (2)
+  y(u) = Py₀ + ((ad-1)/b u + d u²)              (3)
+
+Solving u from (2) gives:
+
+  x(u) = Px₀ + a u + b u² --> b u² + a u + Px₀ - x = 0 -->
+
+      -a +/- √(a² - 4 b (Px₀ - x))
+  u = ---------------------------
+                2 b
+                           a +/- √(a² + 4b(x - Px₀))
+  y = Py₀ + (d/b)(x - Px₀) + ------------------------
+                                     2 b²
+
+which is not an unrotated parabola (it does not have the form y = α x² + β x + γ).
+
+Writing out (1b) as two equations:
+
+  x(u) = Px₀ + a u                               (4)
+  y(u) = Py₀ + c u + u²/a                        (5)
+
+Solving u from (4) gives:
+
+  u = (x - Px₀) / a
+  y = Py₀ + c ((x - Px₀) / a) + ((x - Px₀) / a)² / a = 
+    = (1/a³) x² + (c/a - 2Px₀/a³) x + (Py₀ - cPx₀/a + Px₀²/a³)
+
+which *is* a general parabola. The derivative is:
+
+  dy/dx = (2/a³) x + (c/a - 2Px₀/a³)
+
+which is zero when x = (2Px₀/a³ - c/a) / (2/a³) = Px₀ - ca²/2
+
+
+Introducing a "width" w = a^(3/2), and a "shift" s = -c/2 w^(1/3),
+we can write for the unrotated parabola (1b) case:
+
+      ⎡    w^(2/3)          0⎤
+ M' = ⎣-2s w^(-1/3)  w^(-2/3)⎦
+
+and
+
+  x(u) = Px₀ +    w^(2/3)  u
+  y(u) = Py₀ - 2s w^(-1/3) u + w^(-2/3) u²
+
+If s=0 then P₀ corresponds to the vertex of the parabola (the
+point where the curvature has its extreme). In this case
+
+      ⎡   w^(2/3)          0⎤
+ M' = ⎣         0   w^(-2/3)⎦
+
+and
+
+  x(u) = Px₀ + w^(2/3) u
+  y(u) = Py₀ + w^(-2/3) u²
+
+which, after eliminating u gives:
+
+  u = (x(u) - Px₀) w^(-2/3)
+  y(u) = Py₀ + w^(-2/3) ((x(u) - Px₀) w^(-2/3))² = Py₀ + w^(-2) (x(u) - Px₀)²
+
+where the extreme is when the derivative is zero, thus
+
+  dy/dx = 2 w^(-2) (x(u) - Px₀) = 0
+
+which is clearly the case when x(u) = Px₀, which in turn is for u=0,
+and thus y(u) = y(0) = Py₀.
+
+     ╭───────────────────────────────────────────╮
+     │ The vertex of the parabola is P₀ when s=0 │
+     ╰───────────────────────────────────────────╯
+
+For other values of s, the curve shifts along P₀, but does not change
+shape (or rotation). Aka, the "width" stays the same.
+
+The "width" w corresponds to the amount we have to add to the
+x-coordinate (in the unrotated case) of the vertex in order to
+change 1 unit in the y-coordinate.
+
+Before showing that, lets first substitute u = w^(1/3) t.
+This doesn't change anything - except the speed at which we travel
+along the curve when the parameter u (and now t) changes: a bit
+faster for wider parabola's.
+
+This gives:
+  x(u) = Px₀ + u (    w^(2/3)  +        0 u) = Px₀ +    w^(2/3)  u
+  y(u) = Py₀ + u (-2s w^(-1/3) + w^(-2/3) u) = Py₀ - 2s w^(-1/3) u + w^(-2/3) u²
+
+  x(t) = Px₀ +    w^(2/3)  (w^(1/3) t)                         = Px₀ + w t
+  y(t) = Py₀ - 2s w^(-1/3) (w^(1/3) t) + w^(-2/3) (w^(1/3) t)² = Py₀ - 2s t + t²
+
+Note that with this substitution we have
+
+              ⎡w   0⎤⎡t ⎤
+  X(t) = P₀ + ⎣-2s 1⎦⎣t²⎦
+
+and the "unrotated" matrix,
+
+        ⎡  w  0 ⎤
+  M'' = ⎣ -2s 1 ⎦
+
+no longer has a determinant of 1!
+
+The derivate including s is therefore, using t = (x - Px₀)/w, and
+y = Py₀ - 2s (x - Px₀)/w + ((x - Px₀)/w)²
+
+  dy/dx = -2s/w + 2(x - Px₀)/w² = -2s/w + 2t/w = 2(t - s)/w
+
+which is zero when t = s. In other words,
+
+     ╭───────────────────────────────────────────────╮
+     │ we are in the vertex of the parabola when t=s │
+     ╰───────────────────────────────────────────────╯
+
+For example, in the unrotated case, the vertex coordinates are
+
+  x(s) = Px₀ +  w s
+  y(s) = Py₀ - 2s s + s² = Py₀ - s²
+
+If we fill in that x-coordinate plus w into the generate parabola
+equation that we found:
+
+  y = Py₀ - 2s ((Px₀ +  w s + w) - Px₀)/w + (((Px₀ +  w s + w) - Px₀)/w)² =
+    = Py₀ - 2s (s + 1)                    + (s + 1)² =
+    = Py₀ - 2s² - 2s + s² + 2s + 1 = Py₀ - s² + 1 = y(s) + 1
+
+as it should be according to the definition of w.
+
+     ╭──────────────────────────────────────────────────╮
+     │ A line perpendicular to the symmetry line of     │
+     │ the parabola, at a distance of 1 from the vertex,│
+     │ crosses the parabola in two points that are at   │
+     │ a distance of w from the symmetry line.          │
+     ╰──────────────────────────────────────────────────╯
+
+
+Let R be the rotation matrix
+
+      ⎡cos(θ) -sin(θ)⎤
+  R = ⎣sin(θ)  cos(θ)⎦
+
+If we want to get a rotated parabola, rotating around P₀ because that point
+has to stay on the curve of course, the curve equation could be replaced with:
+
+  X'(t) = P₀ + R (X(t) - P₀) = P₀ + R (P₀ + t M [1 t] - P₀) = 
+        = P₀ + t RM [1 t]
+
+Thus, if we set M to RM'' then we have rotation around P₀ included.
+We now have the matrix
+
+      ⎡ w cos(θ) + 2s sin(θ)    -sin(θ) ⎤
+  M = ⎣ w sin(θ) - 2s cos(θ)     cos(θ) ⎦
+
+The functions x(t) and y(t) written out then become:
+
+  x(t) = Px₀ + (w cos(θ) + 2s sin(θ)) t - sin(θ) t²
+  y(t) = Py₀ + (w sin(θ) - 2s cos(θ)) t + cos(θ) t²
+
+This curve passes through P₀ when t = 0.
+If we want it to pass through a point P₁ when t = 1:
+
+  Px₁ = x(1) = Px₀ + (w cos(θ) + 2s sin(θ)) - sin(θ)
+  Py₁ = y(1) = Py₀ + (w sin(θ) - 2s cos(θ)) + cos(θ)
+
+then
+
+  Px₁ - Px₀ = w cos(θ) + (2s - 1) sin(θ)
+  Py₁ - Py₀ = w sin(θ) - (2s - 1) cos(θ)
+
+  Let v = sqrt(w² + (2s - 1)²)
+
+         +
+        /|
+       / |
+      /  |
+    v/   |2s-1
+    /    |
+   /     |
+  / α    |
+ +-------+
+     w
+
+  2s - 1 = v sin(α)
+       w = v cos(α)
+
+  Px₁ - Px₀ = v (cos(α)cos(θ) + sin(α)sin(θ)) = v cos(θ - α)
+  Py₁ - Py₀ = v (cos(α)sin(θ) - sin(α)cos(θ)) = v sin(θ - α)
+
+  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ - α)
+
+  |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = v
+
+Lets say we want to keep s the same, then in order for the
+curve to go through P₁ at t=1, we must tune w such that
+w² + (2s - 1)² = v² = |P₁ - P₀|²
+
+  w = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)² - (2s - 1)²)
+
+which might not always be possible if s is too large, or
+the points are too close.
+
+A better way to look this relationship is that P₀ and P₁
+are w apart in the direction perpendicular to the symmetry
+line of the parabola - and a distance 2s - 1 in the direction
+parallel to the symmetry line.
+
+Most notable, when s=0 then P₀ is the vertex and P₁ lays
+at a distance of precisely w from the symmetry line; while
+when s=1 then P₁ is the vertex and P₀ lays at a distance
+of precisely w from the symmetry line.
+
+Lets say that V is the unit vector that points along the
+direction of the symmetry line towards the side that the
+parabola goes to infinity, and U is V rotated 90 degrees
+clockwise:
+
+  U = [cos(θ), sin(θ)]
+  V = [-sin(θ), cos(θ)]
+
+Let P₀P₁ be the vector from P₀ to P₁, then
+
+     ╭─────────────────╮
+     │ P₀P₁⋅U = w      │
+     │ P₀P₁⋅V = 1 - 2s │
+     ╰─────────────────╯
+
