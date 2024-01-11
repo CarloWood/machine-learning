@@ -240,19 +240,19 @@ at a distance of precisely w from the symmetry line; while
 when v=1 then P₁ is the vertex and P₀ lays at a distance
 of precisely w from the symmetry line.
 
-Lets say that V is the unit vector that points along the
+Lets say that Y is the unit vector that points along the
 direction of the symmetry line towards the side that the
-parabola goes to infinity, and U is V rotated 90 degrees
+parabola goes to infinity, and X is Y rotated 90 degrees
 clockwise:
 
-  U = [cos(θ), sin(θ)]
-  V = [-sin(θ), cos(θ)]
+  X = [cos(θ), sin(θ)]
+  Y = [-sin(θ), cos(θ)]
 
 Let P₀P₁ be the vector from P₀ to P₁, then
 
      ╭─────────────────╮
-     │ P₀P₁⋅U = w      │
-     │ P₀P₁⋅V = 1 - 2v │
+     │ P₀P₁⋅X = w      │
+     │ P₀P₁⋅Y = 1 - 2v │ (iff s=1, see below.)
      ╰─────────────────╯
 
 This means that for a fixed P₀, P₁ and rotation θ,
@@ -266,4 +266,148 @@ with P₀ and P₁ at the same height (y-coordinate)
 left and right of the symmetry line. I want to stick
 to that. But, with the current formula also the width
 w of the parabola is given: namely the distance between
-P₀ and P₁. We can introduce another scale factor
+P₀ and P₁. We can introduce scale factor s that scales
+the "horizontal" distance between P₀ and P₁ such that
+
+  |P₀P₁| = sw
+
+The equation for this unrotated parabola is:
+
+  y(x) = ax² + bx + c, where we assume a > 0 (otherwise set θ=π).
+
+The derivative
+
+  dy/dx = 2ax + b, is zero when x = -b/(2a).
+
+Hence, the vertex is (-b/(2a), a(-b/(2a))² + b(-b/(2a)) + c) = (-b/(2a), c - b²/(4a))
+
+Then w can be deduced from its definition that y(-b/(2a) +/- w) = c - b²/(4a) + 1.
+From this is follows that w = 1/√a (or -1/√a, but we assume w > 0), in other
+words a = 1/w².
+
+In order to find out the new matrix (including s) it shouldn't matter
+if we apply a translation: lets put the vertex in the origin for now.
+Then b=c=0 and the full equation of the parabola becomes y = (x/w)².
+
+We learned before that x(t) is linear in t (for the unrotated case),
+and with v=0.5 (making their y-coordinates equal) we know that the
+x-coordinate of P₀ (at t=0) is going to be -sw/2 and the x-coordinate
+of P₁ is going to be sw/2, so that they are sw apart. In other words:
+
+  x(t) = -sw/2 + swt
+
+and the y-coordinate of P₁/P₀ is
+
+  Py = (+/-(sw/2)/w)² = s²/4
+
+Hence,
+
+  y(t) = (x(t)/w)² = ((-sw/2 + swt)/w)² = (t - 1/2)²s² = s²/4 - s²t + s²t²
+
+From this we can see that the matrix for the unrotated parabola with v=1/2
+(the translation has no influence on the matrix) is,
+
+        ⎡ sw  0 ⎤
+        ⎣ -s² s²⎦
+
+and it seems likely that for arbitrary v that is going to be
+
+        ⎡  sw  0 ⎤
+  M'' = ⎣-2vs² s²⎦
+
+Lets verify that this is correct:
+
+That matrix gives us the equations
+
+  x(t) = Px₀ + sw t                                     (6)
+  y(t) = Py₀ - 2vs² t + s² t²                           (7)
+
+As P₁ is defined as the point at t=1, we therefore have also
+
+  Px₁ = Px₀ + sw
+  Py₁ = Py₀ - 2vs² + s²
+
+Lets calculate the vertex point from (6) and (7):
+
+  t = (x - Px₀) / sw
+  y = Py₀ - 2vs² ((x - Px₀) / sw) + s² ((x - Px₀) / sw)²
+
+with derivative
+
+  dy/dx = -2vs² / sw + 2s² ((x - Px₀) / sw) / sw =
+        = -2vs/w + 2(x - Px₀)/w²
+
+Setting to zero (using w > 0) gives
+
+  x = Px₀ + vsw
+
+This correctly gives x = Px₀ when v=0, as well
+as x = Px₀ + sw = Px₁ when v=1.
+
+We can reintroduce rotation around P₀ by setting
+
+             ⎡ sw cos(θ) + 2vs² sin(θ)     -s² sin(θ) ⎤
+  M = RM'' = ⎣ sw sin(θ) - 2vs² cos(θ)      s² cos(θ) ⎦
+
+Now we have to do the same exercise as before, but this time
+with s included.
+
+The functions x(t) and y(t) written out have become:
+
+     ╭─────────────────────────────────────────────────────────╮
+     │ x(t) = Px₀ + (sw cos(θ) + 2vs² sin(θ)) t - s² sin(θ) t² │
+     │ y(t) = Py₀ + (sw sin(θ) - 2vs² cos(θ)) t + s² cos(θ) t² │
+     ╰─────────────────────────────────────────────────────────╯
+
+This curve passes through P₀ when t = 0.
+If we want it to pass through a point P₁ when t = 1:
+
+  Px₁ = x(1) = Px₀ + (sw cos(θ) + 2vs² sin(θ)) - s² sin(θ)
+  Py₁ = y(1) = Py₀ + (sw sin(θ) - 2vs² cos(θ)) + s² cos(θ)
+
+then
+
+  Px₁ - Px₀ = sw cos(θ) + s²(2v - 1) sin(θ)
+  Py₁ - Py₀ = sw sin(θ) - s²(2v - 1) cos(θ)
+
+  Let d = sqrt(s²w² + s⁴(2v - 1)²)
+
+         +
+        /|
+       / |
+      /  |
+    d/   |s²(2v-1)
+    /    |
+   /     |
+  / α    |
+ +-------+
+    sw
+
+  s²(2v - 1) = d sin(α)
+          sw = d cos(α)
+
+  Px₁ - Px₀ = d (cos(α)cos(θ) + sin(α)sin(θ)) = d cos(θ - α)
+  Py₁ - Py₀ = d (cos(α)sin(θ) - sin(α)cos(θ)) = d sin(θ - α)
+
+  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ - α)
+
+  |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = d
+
+In other words, the relationship between s, w, v and the
+distance between P₀ and P₁ has become:
+  
+     ╭────────────────────────────────────╮
+     │ P₀P₁⋅X = sw         = |P₀P₁|cos(α) │
+     │ P₀P₁⋅Y = s²(1 - 2v) = |P₀P₁|sin(α) │
+     ╰────────────────────────────────────╯
+
+See Relationship_between_P0_P1_theta_w_v_and_s.png
+for an overview of the variables discussed so far.
+
+---
+
+Let Pᵦ be a point that is generated by t = β < 0.
+
+  Pxᵦ = x(β) = Px₀ + (sw cos(θ) + 2vs² sin(θ)) β - s² sin(θ) β²
+  Pyᵦ = y(β) = Py₀ + (sw sin(θ) - 2vs² cos(θ)) β + s² cos(θ) β²
+
