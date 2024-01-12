@@ -195,44 +195,44 @@ If we want it to pass through a point P₁ when t = 1:
 
 then
 
-  Px₁ - Px₀ = w cos(θ) + (2v - 1) sin(θ)
-  Py₁ - Py₀ = w sin(θ) - (2v - 1) cos(θ)
+  Px₁ - Px₀ = w cos(θ) - (1 - 2v) sin(θ)
+  Py₁ - Py₀ = w sin(θ) + (1 - 2v) cos(θ)
 
-  Let d = sqrt(w² + (2v - 1)²)
+  Let d = sqrt(w² + (1 - 2v)²)
 
          +
         /|
        / |
       /  |
-    d/   |2v-1
+    d/   |1-2v
     /    |
    /     |
   / α    |
  +-------+
      w
 
-  2v - 1 = d sin(α)
+  1 - 2v = d sin(α)
        w = d cos(α)
 
-  Px₁ - Px₀ = d (cos(α)cos(θ) + sin(α)sin(θ)) = d cos(θ - α)
-  Py₁ - Py₀ = d (cos(α)sin(θ) - sin(α)cos(θ)) = d sin(θ - α)
+  Px₁ - Px₀ = d (cos(α)cos(θ) - sin(α)sin(θ)) = d cos(θ + α)
+  Py₁ - Py₀ = d (cos(α)sin(θ) + sin(α)cos(θ)) = d sin(θ + α)
 
-  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ - α)
+  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ + α)
 
   |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = d
 
 Lets say we want to keep v the same, then in order for the
 curve to go through P₁ at t=1, we must tune w such that
-w² + (2v - 1)² = d² = |P₁ - P₀|²
+w² + (1 - 2v)² = d² = |P₁ - P₀|²
 
-  w = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)² - (2v - 1)²)
+  w = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)² - (1 - 2v)²)
 
 which might not always be possible if |v| is too large, or
 the points are too close.
 
 A better way to look this relationship is that P₀ and P₁
 are w apart in the direction perpendicular to the symmetry
-line of the parabola - and a distance 2v - 1 in the direction
+line of the parabola - and a distance 1 - 2v in the direction
 parallel to the symmetry line.
 
 Most notable, when v=0 then P₀ is the vertex and P₁ lays
@@ -367,29 +367,32 @@ If we want it to pass through a point P₁ when t = 1:
 
 then
 
-  Px₁ - Px₀ = sw cos(θ) + s²(2v - 1) sin(θ)
-  Py₁ - Py₀ = sw sin(θ) - s²(2v - 1) cos(θ)
+  Px₁ - Px₀ = sw cos(θ) - s²(1 - 2v) sin(θ)
+  Py₁ - Py₀ = sw sin(θ) + s²(1 - 2v) cos(θ)
 
-  Let d = sqrt(s²w² + s⁴(2v - 1)²)
+  Let d = sqrt(s²w² + s⁴(1 - 2v)²)
 
          +
         /|
        / |
       /  |
-    d/   |s²(2v-1)
+    d/   |s²(1-2v)
     /    |
    /     |
   / α    |
  +-------+
     sw
 
-  s²(2v - 1) = d sin(α)
+  s²(1 - 2v) = d sin(α)
           sw = d cos(α)
 
-  Px₁ - Px₀ = d (cos(α)cos(θ) + sin(α)sin(θ)) = d cos(θ - α)
-  Py₁ - Py₀ = d (cos(α)sin(θ) - sin(α)cos(θ)) = d sin(θ - α)
+  Px₁ - Px₀ = d (cos(α)cos(θ) - sin(α)sin(θ)) = d cos(θ + α)
+  Py₁ - Py₀ = d (cos(α)sin(θ) + sin(α)cos(θ)) = d sin(θ + α)
 
-  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ - α)
+     │ P₀P₁⋅X = w      │
+     │ P₀P₁⋅Y = 1 - 2v │ (iff s=1, see below.)
+
+  (Py₁ - Py₀)/(Px₁ - Px₀) = tan(θ + α)
 
   |P₁ - P₀| = sqrt((Px₁ - Px₀)² + (Py₁ - Py₀)²) = d
 
@@ -397,12 +400,25 @@ In other words, the relationship between s, w, v and the
 distance between P₀ and P₁ has become:
   
      ╭────────────────────────────────────╮
-     │ P₀P₁⋅X = sw         = |P₀P₁|cos(α) │
-     │ P₀P₁⋅Y = s²(1 - 2v) = |P₀P₁|sin(α) │
+     │ P₀P₁⋅X = sw         = |P₀P₁|cos(α) │             (8)
+     │ P₀P₁⋅Y = s²(1 - 2v) = |P₀P₁|sin(α) │             (9)
      ╰────────────────────────────────────╯
 
 See Relationship_between_P0_P1_theta_w_v_and_s.png
 for an overview of the variables discussed so far.
+
+The introduction of P₁, with the demand that P₁ = X(1)
+hence restricts the choice of curves; we no longer can
+choose freely a set of six variables (Px₀, Py₀, θ, v, w, s;
+where 0 <= θ < 2π, w > 0 and s > 0) each giving a unique
+curve, because a lot of those won't pass through P₁,
+or do but not when t=1.
+
+For example we can use (Px₀, Py₀, Px₁, Py₁, α, s) instead.
+Using (8) w = |P₀P₁|cos(α) / s, and
+using (9) v = (1 - |P₀P₁|sin(α) / s²) / 2.
+Whereas θ = atan2(Py₁ - Py₀, Px₁ - Px₀) - α, which can
+best be understood by looking at the png mentioned above.
 
 ---
 
