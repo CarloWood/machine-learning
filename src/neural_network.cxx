@@ -8,7 +8,7 @@
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
-constexpr int size_of_batch = 3;
+constexpr int size_of_batch = 100;
 
 float x1(float x0)
 {
@@ -64,7 +64,7 @@ int main()
   int seed1 = seed_distribution(seed_generator);
   int seed2 = seed_distribution(seed_generator);
 
-  seed1 = 136637526; seed2 = 806889242;
+//  seed1 = 136637526; seed2 = 806889242;
 
   std::cout << "seed1 = " << seed1 << "; seed2 = " << seed2 << '\n';
 
