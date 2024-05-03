@@ -1,0 +1,98 @@
+Consider a vector W and a scalar function L(W).
+The problem is to find the value Wₘ such that L(Wₘ) has the lowest possible value.
+
+If we assume there is only a single minimum (and no (other) local
+minima) then this point will be the only point where ∇_W L = 0.
+
+For example, let W be a 1-dimensional vector: W = [w], and
+let L be defined as:
+
+  L(w) = a + b w + c w²,
+
+then
+
+  ∇_W L = [ ∂L/∂w ] = dL/dw = b + 2c w
+
+The value of w at which L has a minimum is therefore given
+by b + 2c wₘ = 0, provided that c > 0 of course.
+In other words,
+
+  wₘ = -b / 2c
+
+where the minimum value is
+
+  L(wₘ) = a + b (-b / 2c) + c (-b / 2c)² = a - b² / 4c
+
+Let the initial value of w that we begin with be w₀.
+Then we have the initial values:
+
+  L(w₀) = a + b w₀ + c w₀²
+  L'(w₀) = b + 2c w₀
+
+Let the learning rate α be a small real value (rather arbitrary
+initially). Such that the next value of w is
+
+  w₁ = w₀ - α ∂L/∂w = w₀ - α (b + 2c w₀) = -α b + (1 - 2α c) w₀
+
+which gives the next values for L and L':
+
+  L(w₁) = a + b w₁ + c w₁²
+  L'(w₁) = b + 2c w₁
+
+Since we know that the first derivative is a linear function:
+
+   |              /
+   |             +  -- L'(w₀)
+   |            /|
+   |           / |
+   |          +  |  -- L'(w₁)
+   |         /|  |
+   |        / |  |
+   |       /  |  |
+   |      /   |  |
+   |     /    |  |
+   +----.-----.--.------
+  O     wₘ    w₁ w₀
+
+
+  L' = β (w - wₘ)
+
+  L'(w₁) = β (w₁ - wₘ)
+  L'(w₀) = β (w₀ - wₘ)
+---------------------- -
+  L'(w₁) - L'(w₀) = β (w₁ - w₀)  -->  β = (L'(w₁) - L'(w₀)) / (w₁ - w₀)
+
+  wₘ = w₁ - L'(w₁) / β = w₁ - (w₁ - w₀) / (L'(w₁) - L'(w₀)) L'(w₁)
+
+or maybe,
+
+  w₁ L'(w₀) = β (w₀w₁ - w₁wₘ)
+  w₀ L'(w₁) = β (w₀w₁ - w₀wₘ)
+----------------------------- -
+  w₁ L'(w₀) - w₀ L'(w₁) = -(w₁ - w₀)wₘ -->
+  wₘ = (w₀ L'(w₁) - w₁ L'(w₀)) / (w₁ - w₀)
+
+---
+
+Next, consider a fourth degree polynomial:
+
+  L(w) = a + b w + c w² + d w³ + e w⁴
+  L'(w) = b + 2c w + 3d w² + 4e w³
+
+After measuring L and L' for three different values of w
+we can make an estimate of the vector P = [b c d e]ᵀ.
+
+Having determined the values of L and L' for w₀, w₁ and w₂,
+
+  L'(w₂)        =         b +       2w₂ c +      3w₂² d +      4w₂³ e
+  L'(w₁)        =         b +       2w₁ c +      3w₁² d +      4w₁³ e
+  L'(w₀)        =         b +       2w₀ c +      3w₀² d +      4w₀³ e
+  L(w₂) - L(w₁) = (w₂-w₁) b + (w₂²-w₁²) c + (w₂³-w₁³) d + (w₂⁴-w₁⁴) e
+
+which can be written in matrix form, and then we can solve for P:
+                                          -1
+  ⎡b⎤   ⎡  1      2w₂      3w₂²     4w₂³ ⎤   ⎡    L'(w₂)   ⎤
+  ⎢c⎥   ⎢  1      2w₁      3w₁²     4w₁³ ⎥   ⎢    L'(w₁)   ⎥
+  ⎢d⎥ = ⎢  1      2w₀      3w₀²     4w₀³ ⎥   ⎢    L'(w₀)   ⎥
+  ⎣e⎦   ⎣w₂-w₁  w₂²-w₁²  w₂³-w₁³  w₂⁴-w₁⁴⎦   ⎣L(w₂) - L(w₁)⎦
+
