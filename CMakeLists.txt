@@ -31,7 +31,7 @@ endif ()
 include(cwm4/cmake/AICxxProject)
 
 # This project uses boost filesystem.
-find_package(Boost COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 # Exit if someone tries to contaminates the source directory with an in-source build.
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
