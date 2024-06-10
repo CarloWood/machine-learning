@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.12...3.27)
 
 find_package(Threads REQUIRED)
 find_package(TensorflowCC REQUIRED)
+find_package(OpenMP)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(OPENMP REQUIRED openmp)
 pkg_check_modules(CAIRO REQUIRED cairo)
 pkg_check_modules(X11 REQUIRED x11)
 
@@ -13,8 +13,10 @@ include(AICxxProject)
 # Macro to help create the executables.
 macro(add_test app_name main_file)
   add_executable(${app_name} ${main_file}.cxx)
-  target_compile_options(${app_name} PRIVATE ${OPENMP_CFLAGS})
-  target_link_libraries(${app_name} TensorflowCC::TensorflowCC ${OPENMP_LDFLAGS} Threads::Threads)
+  target_link_libraries(${app_name} TensorflowCC::TensorflowCC Threads::Threads)
+  if (OpenMP_CXX_FOUND)
+    target_link_libraries(${app_name} OpenMP::OpenMP_CXX)
+  endif ()
 endmacro()
 
 # My stuff.
