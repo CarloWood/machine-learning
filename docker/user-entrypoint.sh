@@ -8,6 +8,7 @@ echo "DISPLAY = \"${DISPLAY}\""
 echo "GITACHE_ROOT = \"${GITACHE_ROOT}\""
 echo "AUTOGEN_CMAKE_ONLY = ${AUTOGEN_CMAKE_ONLY}"
 echo "TensorflowCC_DIR = \"${TensorflowCC_DIR}\""
+echo "TENSORFLOW_PREFIX = \"${TENSORFLOW_PREFIX}\""
 
 if [ -z "$DISPLAY" ]; then
   echo "Warning: DISPLAY is not set!"
@@ -21,6 +22,9 @@ fi
 if [ -z "$TensorflowCC_DIR" ]; then
   export TensorflowCC_DIR="$HOME/data/machine-learning/cmake"
 fi
+if [ -z "$TENSORFLOW_PREFIX" ]; then
+  export TENSORFLOW_PREFIX=/usr
+fi
 
 if [ ! -d "$GITACHE_ROOT" ]; then
   mkdir $GITACHE_ROOT
@@ -30,7 +34,7 @@ if ! command -v git &> /dev/null; then
   sudo pacman --noconfirm -Sy git clang make pkgconfig cmake boost pango cairo eigen tensorflow-opt neovim ttf-dejavu
 
   echo "Now enter the container with the command:"
-  echo "docker exec -it machine-learning su --login --whitelist-environment="DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR" archuser"
+  echo "docker exec -it machine-learning su --login --whitelist-environment="DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR,TENSORFLOW_PREFIX" archuser"
   echo "Then download and configure the project:"
   echo "$ cd data"
   echo "$ git clone --recursive https://github.com/CarloWood/machine-learning.git"

@@ -22,7 +22,7 @@ Running a shell in the container
 
 To run a shell inside the running container:
 
-  docker exec -it machine-learning su --login --whitelist-environment=DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR archuser
+  docker exec -it machine-learning su --login --whitelist-environment=DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR,TENSORFLOW_PREFIX archuser
 
 This puts you in /home/archuser
 Note that only data added to / changes made to files in the directory ~/data are persistent!

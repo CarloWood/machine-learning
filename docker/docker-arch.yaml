@@ -1,7 +1,7 @@
 services:
   machine-learning:
     container_name: machine-learning
-    image: archlinux
+    image: amd64/archlinux:latest
     user: root                                        # entrypoint.sh needs root: it needs to install sudo.
     volumes:
       - ./data:/home/archuser/data                    # Unfortunately, that means that /home/archuser/data might get created as root, but entrypoint.sh also fixes that.
@@ -16,9 +16,8 @@ services:
       - DISPLAY=$DISPLAY
       - AUTOGEN_CMAKE_ONLY=1
       - TensorflowCC_DIR=/home/archuser/data/machine-learning/cmake
+      - TENSORFLOW_PREFIX=/usr
       - GITACHE_ROOT=/home/archuser/data/gitache
-      - HOST_EUID=$HOST_EUID
-      - HOST_EGID=$HOST_EGID
-    entrypoint: ["/entrypoint.sh"]
     network_mode: host
+    entrypoint: ["/entrypoint.sh"]
     command: ["/user-entrypoint.sh"]
