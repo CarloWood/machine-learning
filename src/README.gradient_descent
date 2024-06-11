@@ -96,3 +96,107 @@ which can be written in matrix form, and then we can solve for P:
   ⎢d⎥ = ⎢  1      2w₀      3w₀²     4w₀³ ⎥   ⎢    L'(w₀)   ⎥
   ⎣e⎦   ⎣w₂-w₁  w₂²-w₁²  w₂³-w₁³  w₂⁴-w₁⁴⎦   ⎣L(w₂) - L(w₁)⎦
 
+---
+
+For the backtracking, I'd like an estimate on whether or not it is
+likely that the function L(w) has a minimum between w₀ and w₁.
+
+The following values are known: L(w₀), L'(w₀), L(w₁) and L'(w₁).
+In fact we also know the second derivative at w₀ more or less.
+
+Namely, a parabola P(w) was calculated as approximation that goes through (w₀, L(w₀)):
+
+    P(w) = a + b w + c w²
+
+Thus,
+
+    P(w₀)   = a + b w₀ +  c w₀² = L(w₀)
+    P'(w₀)  =     b    + 2c w₀  = L'(w₀)
+    P''(w₀) =            2c     = L''(w₀)
+
+where a, b and c are now known.
+
+This predicts a vertex at w₁ = -b / 2c
+
+Lets now fit a cubic polynomial through (w₀, L(w₀)) and (w₁, L(w₁))
+with respectively the derivative equal to L'(w₀) and L'(w₁).
+
+    Q(w) = d + e w + f w² + g w³
+
+such that
+
+    Q(w₀) = d + e w₀ + f w₀² + g w₀³ = L(w₀)
+    Q(w₁) = d + e w₁ + f w₁² + g w₁³ = L(w₁)
+
+or, subtracted
+
+    Q(w₀) - Q(w₁) = (w₀ - w₁) e + (w₀² - w₁²) f + (w₀³ - w₁³) g = L(w₀) - L(w₁)         (1)
+
+Furthermore,
+
+    Q'(w₀)  = e + 2f w₀ + 3g w₀² = L'(w₀)                                               (2)
+    Q'(w₁)  = e + 2f w₁ + 3g w₁² = L'(w₁)                                               (3)
+    Q''(w₀) =     2f    + 6g w₀  = L''(w₀) = 2c                                         (4)
+
+Since this is an overdetermined system, we'll ignore (3).
+
+Multiply (2) with (w₀ - w₁) to get:
+
+    (w₀ - w₁) e + 2 (w₀ - w₁) w₀ f + 3 (w₀ - w₁) w₀² g = (w₀ - w₁) L'(w₀)
+
+Subtract it from (1)
+
+    (w₀² - w₁² - 2 (w₀ - w₁) w₀) f + (w₀³ - w₁³ - 3 (w₀ - w₁) w₀²) g = L(w₀) - L(w₁) - (w₀ - w₁) L'(w₀)
+
+w₀² - w₁² - 2 (w₀ - w₁) w₀ = - w₀² - w₁² + 2 w₀w₁ = -(w₀² - 2 w₀w₁ + w₁²) = -(w₀ - w₁)²
+w₀³ - w₁³ - 3 (w₀ - w₁) w₀² = (w₀ - w₁)² (-2 w₀ - w₁)
+
+    -(w₀ - w₁)² f + (w₀ - w₁)² (-2 w₀ - w₁) g = L(w₀) - L(w₁) - (w₀ - w₁) L'(w₀)        (5)
+  =  (w₀ - w₁)² ((-2 w₀ - w₁) g - f)
+
+
+From (4) follows that
+
+    f = c - 3g w₀
+
+Fill this in into (5) to get
+
+    (w₀ - w₁)² ((-2 w₀ - w₁) g - (c - 3g w₀)) = (w₀ - w₁)² ((w₀ - w₁) g - c) = L(w₀) - L(w₁) - (w₀ - w₁) L'(w₀)
+
+
+    g = (L(w₀) - L(w₁))/(w₀ - w₁)³ - L'(w₀) / (w₀ - w₁)² + c / (w₀ - w₁)
+
+
+And thus
+
+         L(w₀) - L(w₁) - (w₀ - w₁) L'(w₀) + (w₀ - w₁)² c
+    g =  -----------------------------------------------
+                         (w₀ - w₁)³
+
+Finally, from (2) follows
+
+    e = L'(w₀) - 2f w₀ - 3g w₀²
+
+It can be shown that when L(w₁) = P(w₁), then Q(w) = P(w); namely substituting L(w₁) = a - b² / 4c
+gives g = 0, f = c, e = b and d = a.
+
+To check if there is a minimum between w₀ and w₁, and where,
+we set Q'(w) = e + 2f w + 3g w² = 0, giving the following solutions:
+
+        -f +/- sqrt(f² - 3ge)
+    w = ---------------------
+                 3g
+
+Note that when g is close to 0, we can approximate this as:
+
+        -f +/- sqrt(f² - 2 f 3ge/2f + (3ge/2f)²)   -f +/- sqrt((f - 3ge/2f)²)   -f +/- |f - 3ge/2f|
+    w ~ ---------------------------------------- = -------------------------- = -------------------
+                        3g                                     3g                       3g
+
+Since f is close to c, which is positive because we're talking about a minium here,
+f is positive and we must pick the + sign or else this value goes to infinity.
+In other words:
+
+        -f + (f - 3ge/2f)
+    w ~ ----------------- = -e / 2f ~ -b / 2c = w₁
+               3g
