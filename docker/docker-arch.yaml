@@ -1,0 +1,24 @@
+services:
+  machine-learning:
+    container_name: machine-learning
+    image: archlinux
+    user: root                                        # entrypoint.sh needs root: it needs to install sudo.
+    volumes:
+      - ./data:/home/archuser/data                    # Unfortunately, that means that /home/archuser/data might get created as root, but entrypoint.sh also fixes that.
+      - /tmp/.X11-unix:/tmp/.X11-unix                 # Required to connect to the X11 server.
+      - $HOME/.Xauthority:/home/archuser/.Xauthority  #
+      - ./entrypoint.sh:/entrypoint.sh                # At the end of this script, we drop root and
+      - ./user-entrypoint.sh:/user-entrypoint.sh      # execute user-entrypoint.sh as archuser.
+    working_dir: /home/archuser/data
+    env_file:
+      - .env                                          # Create this file, and add HOST_EUID and HOST_EGID - used below.
+    environment:
+      - DISPLAY=$DISPLAY
+      - AUTOGEN_CMAKE_ONLY=1
+      - TensorflowCC_DIR=/home/archuser/data/machine-learning/cmake
+      - GITACHE_ROOT=/home/archuser/data/gitache
+      - HOST_EUID=$HOST_EUID
+      - HOST_EGID=$HOST_EGID
+    entrypoint: ["/entrypoint.sh"]
+    network_mode: host
+    command: ["/user-entrypoint.sh"]

@@ -1,0 +1,49 @@
+To run the docker container, make sure the docker daemon is running.
+For example, on Arch Linux:
+
+  systemctl status docker
+
+Starting (running) the container
+--------------------------------
+
+To start the docker container, run:
+
+  docker-compose -f docker-arch.yaml up -d
+
+To see what it is being printed, run:
+
+  docker-compose -f docker-arch.yaml logs -f
+
+The sudo command is added by entrypoint.sh.
+All required packages are added by user-entrypoint.sh.
+
+Running a shell in the container
+--------------------------------
+
+To run a shell inside the running container:
+
+  docker exec -it machine-learning su --login --whitelist-environment=DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR archuser
+
+This puts you in /home/archuser
+Note that only data added to / changes made to files in the directory ~/data are persistent!
+
+Destroying the container
+------------------------
+
+To destroy all of the above again (execpt what you did in ~/data):
+
+  docker-compose -f docker-arch.yaml down
+
+---
+
+To see which containers exist / are running:
+
+  docker ps --all
+
+To remove a container that isn't running anymore:
+
+  docker rm ID
+
+or simply
+
+  docker rm machine-learning
