@@ -1,0 +1,3 @@
+mkdir -p "$CDEH_HISTROOT`pwd`"
+touch "$CDEH_HISTROOT`pwd`"/history
+echo -n > "$CDEH_TMP/prevwd"

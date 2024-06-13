@@ -1,0 +1,51 @@
+#! /bin/bash
+
+# This script allows passing line numbers the way they appear in compile errors.
+# For example `vim foobar:100:14_junk_here' will open file foobar at line 100.
+# If the file does not exist, but $REPOBASE/foobar does, then that is used instead.
+# This is handy in combination with a filter on the output of the compiler that
+# removes the $REPOBASE prefix from paths.
+
+# Collect (possibly altered) arguments in args.
+args=()
+line=
+fline=
+
+# Process each argument and store them in args.
+while [[ $# > 0 ]]
+do
+  case "$1" in
+  -c)
+    shift
+    args+=( "-c" )
+    args+=( "$1" )
+    ;;
+  +*)
+    line="${1:1}"
+    ;;
+  *)
+    file="`echo "$1" | sed -r -e 's/:[[:digit:]]+.*//'`"
+    origfile="$file"
+    test -n "$fline" || fline="`echo "$1" | sed -r -e 's/([^:]|:[^[:digit:]])*//;s/:([[:digit:]]+).*/\1/'`"
+    while expr match "$file" "\.\./.*" >/dev/null && test ! -f "$file"; do
+      file=`echo "$file" | sed -e 's%^\.\./%%'`
+    done
+    if test ! -f "$file"; then
+      echo "<<$REPOBASE/$origfile>>"
+      if test -f "$REPOBASE/$origfile"; then
+        file="$REPOBASE/$origfile"
+      else
+        file="$origfile"
+      fi
+    fi
+    args+=( "$file" )
+    ;;
+  esac
+  shift
+done
+
+test -n "$line" || line="$fline"
+test -z "$line" || args+=( +$line -c "normal! zz")
+
+#printf '%s\n' "${args[@]}"
+/usr/bin/nvim "${args[@]}"

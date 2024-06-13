@@ -1,0 +1,54 @@
+This only applies when running docker on a linux host.
+
+To run the docker container as an unpriviledged user, as well as
+make sure that you can read/write the data/ directory both inside
+the container as user archuser and outside the container as yourself,
+you might want to enable the userns-remap feature of docker.
+
+On the host run:
+
+$ id
+uid=1000(carlo) gid=1000(carlo) groups=1000(carlo),0(root),...
+
+Note how this displays carlo for uid and carlo for gid for me.
+Write down the values that you get.
+
+Next, as root, open or create a file /etc/subuid and put in it:
+
+youruid:231072:65536
+
+For example in my case I have: carlo:231072:65536
+
+Also open or create a file /etc/subgid and put in it:
+
+yourgid:231072:65536
+
+For example in my case I have: carlo:231072:65536
+because 'carlo' is also my group.
+
+[ The value 231072 is arbitrary but should be large, so it
+maps to ids that are not in use on the host.
+The 65536 is the range that the docker container can use
+(231072 maps to 0, 231073 to 1 etc, all the way till
+231072 + 65535 = 296607 mapping to 65535).
+If you have more than one range, make sure they do not
+overlap. See https://docs.docker.com/engine/security/userns-remap/
+for more information. ]
+
+Finally, reconfigure your dockerd to use userns-remap.
+Assuming you use systemd to run docker, edit /etc/docker/daemon.json
+and add `"userns-remap": "youruid:yourgid"` as additional configuration.
+
+For example, my /etc/docker/daemon.json file contains:
+
+{
+  "data-root": "/opt/verylarge/docker",
+  "userns-remap": "carlo:carlo"
+}
+
+Note the comma between the fields.
+
+Finally, restart docker:
+
+$ sudo systemctl restart docker
+

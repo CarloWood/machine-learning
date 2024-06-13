@@ -1,0 +1,16 @@
+services:
+  machine-learning:
+    image: arch-ml-env
+    container_name: machine-learning
+    volumes:
+      - ./entrypoint.sh:/usr/local/sbin/entrypoint.sh
+      - ./cdeh/history:/opt/cdeh/history              # Persistent bash history's. Make sure ./cdeh/history has mode 1777.
+      - ./data:/home/archuser/machine-learning        # Persistent data; the repository will be /home/archuser/machine-learning/machine-learning.
+      - /tmp/.X11-unix:/tmp/.X11-unix                 # Required to connect to the X11 server.
+      - $HOME/.Xauthority:/home/archuser/.Xauthority  #
+    working_dir: /home/archuser/machine-learning      # Contains an env.source file that will be read.
+    environment:
+      - DISPLAY=$DISPLAY
+    #network_mode: host                               # Not allowed when using userns-remap.
+    entrypoint: ["/usr/local/sbin/entrypoint.sh"]
+    command: ["tail", "-f", "/dev/null"]

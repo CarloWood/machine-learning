@@ -1,0 +1,7 @@
+export TOPPROJECT=$HOME/machine-learning
+export REPOBASE=$TOPPROJECT/machine-learning
+export GITACHE_ROOT=$TOPPROJECT/gitache
+export AUTOGEN_CMAKE_ONLY=1
+export TENSORFLOW_PREFIX=/usr
+export TensorflowCC_DIR=$REPOBASE/cmake
+

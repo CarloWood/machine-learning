@@ -14,4 +14,3 @@ ltmain.sh
 missing
 build
 .gdbinit
-docker/data

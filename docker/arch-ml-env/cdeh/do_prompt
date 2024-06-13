@@ -1,0 +1,120 @@
+# cdeh v2.1 -- an automatic history and environment switch system.
+#
+# Copyright (C) 2007 (v1.0), 2020 (v2.0)  Carlo Wood <carlo@alinoe.com>
+#
+# $1 : PID of the shell
+# $2 : $HISTFILE
+#
+EXITCODE=1
+KEEP_ENVFILES=
+CDEH_TMP="/tmp/cdeh.$CDEH_USER/$1"
+if ! test -d "$CDEH_TMP"; then
+  echo "Recreating $CDEH_TMP" 2>&1
+  mkdir -p "$CDEH_TMP"
+fi
+if ! expr "$2" : "^$CDEH_HISTROOT/" >/dev/null; then
+  # In case this is the very first time we run this, do some initialization.
+  if ! test -f "$CDEH_HISTROOT/history"; then
+    if ! test -d "$CDEH_HISTROOT"; then
+      echo "$0: WARNING: \"$CDEH_HISTROOT\": No such directory."
+    fi
+    touch "$CDEH_HISTROOT/history"
+  fi
+  echo "Reloading history for $HOME"
+  HISTSIZE=$CDEH_HISTSIZE
+  history -r "$CDEH_HISTROOT/history"
+  PREVIOUS_DIR="nothing"
+else
+  if test -e "$CDEH_TMP/prevwd"; then
+    source "$CDEH_TMP/prevwd"
+  fi
+  if test -n "$CDEH_REMOVE_STORE"; then
+    echo 'unset CDEH_REMOVE_STORE' > "$CDEH_TMP/store.env"
+    echo "$CDEH_TMP/store.env" > "$CDEH_TMP/envfiles"
+    KEEP_ENVFILES=1
+    rm -f "$CDEH_TMP/histfile"
+    EXITCODE=0
+  fi
+fi
+if test "$CDEH_STORE_ENVIRONMENT" = "yes"; then
+  if test -n "$CDEH_VERBOSE"; then
+    echo 'echo "$$ SAVING ENTIRE ENVIRONMENT to $CDEH_TMP/env.base"' > "$CDEH_TMP/store.env";
+  else
+    echo -n > "$CDEH_TMP/store.env";
+  fi
+  declare -f __cdeh_store_environment | grep -v '^[_{}]' >> "$CDEH_TMP/store.env"
+  echo 'export CDEH_REMOVE_STORE=1' >> "$CDEH_TMP/store.env"
+  echo 'CDEH_STORE_ENVIRONMENT=' >> "$CDEH_TMP/store.env"
+  echo "$CDEH_TMP/store.env" > "$CDEH_TMP/envfiles"
+  KEEP_ENVFILES=1
+  EXITCODE=0
+fi
+if [ "$PREVIOUS_DIR" != "$PWD" ]; then
+  echo "PREVIOUS_DIR=\"$PWD\"" > "$CDEH_TMP/prevwd"
+  rm -f "$CDEH_TMP/histfile"
+  if test -z "$KEEP_ENVFILES"; then
+    rm -f "$CDEH_TMP/envfiles"
+  fi
+  CURRENT_DIR="$PWD"
+  CDEH_NEW_DIR=
+  until [ "$CURRENT_DIR" = "" ]; do
+    if [ -f "$CDEH_HISTROOT/$CURRENT_DIR/history" ]; then
+      CDEH_NEW_DIR="$CURRENT_DIR"
+      break
+    fi
+    CURRENT_DIR="${CURRENT_DIR%/*}"
+  done
+  if [ "$CURRENT_DIR" = "" ]; then
+    CURRENT_DIR="/"
+  fi
+  if [ "$CURRENT_DIR" = "/" -a -f "$CDEH_HISTROOT/history" ]; then
+    CDEH_NEW_DIR="/"
+  fi
+  if [ "$CDEH_NEW_DIR" = "" ]; then
+    CDEH_NEW_DIR="/"
+  fi
+  INODE=$(stat "$CDEH_NEW_DIR" | awk '/^Device:/ { printf("%s:%d\n",$2, $4); }')
+  if [ -f "$CDEH_TMP/prevhd" ]; then
+    source "$CDEH_TMP/prevhd"
+  else
+    PREVIOUS_INODE=
+  fi
+  if [ "$PREVIOUS_INODE" != "$INODE" ]; then
+    echo "PREVIOUS_INODE=$INODE" > "$CDEH_TMP/prevhd"
+    echo "PREVIOUS_DIR=\"$CDEH_NEW_DIR\"" >> "$CDEH_TMP/prevhd"
+    if [ "$2" != "$CDEH_HISTROOT/$CURRENT_DIR/history" ]; then
+      history -w "$CDEH_HISTROOT/$PREVIOUS_DIR/history"
+      echo "$CDEH_HISTROOT/$CURRENT_DIR/history" > "$CDEH_TMP/histfile"
+      echo "History changed from \"$PREVIOUS_DIR\" to \"$CURRENT_DIR\""
+      EXITCODE=0
+    fi
+  fi
+  __cdeh_rebuild_source_dirs
+  TITLE="`echo "[$CDEH_CURRENT_DIR]$PWD" | sed -e 's%\[[^]]*/%[%' -e 's%\(\[[^]]*\]\)'"$CDEH_CURRENT_DIR"'%\1 %' -e 's%\[\]%[/]%' -e 's% $%%' -e 's%^\[/\]$%'"$PWD"'%'`"
+  #xtermset -title "$TITLE"
+  echo -ne "\033]30;$TITLE\007"
+  test -z "$CDEH_VERBOSE" || echo "$$ CDEH_NEW_DIR is now \"$CDEH_NEW_DIR\""
+  INODE=$(stat "$CDEH_NEW_DIR" | awk '/^Device:/ { printf("%s:%d\n",$2, $4); }')
+  if [ -f "$CDEH_TMP/preved" ]; then
+    source "$CDEH_TMP/preved"
+  else
+    PREVIOUS_INODE=
+    PREVIOUS_DIR="nothing"
+  fi
+  test -z "$CDEH_VERBOSE" || echo "$$ PREVIOUS_INODE='$PREVIOUS_INODE'; PREVIOUS_DIR=\"$PREVIOUS_DIR\"; INODE='$INODE'"
+  if [ "$PREVIOUS_INODE" != "$INODE" ]; then
+    echo "PREVIOUS_INODE=$INODE" > "$CDEH_TMP/preved"
+    echo "PREVIOUS_DIR=\"$CDEH_NEW_DIR\"" >> "$CDEH_TMP/preved"
+    __cdeh_rebuild_envfiles
+    NEW_CDEH_ENVFILES=$(cat "$CDEH_TMP/envfiles")
+    test -z "$CDEH_VERBOSE" || echo "$$ CDEH_ENVFILES=\""$CDEH_ENVFILES"\"; NEW_CDEH_ENVFILES=\""$NEW_CDEH_ENVFILES"\""
+    if [ "$CDEH_ENVFILES" != "$NEW_CDEH_ENVFILES" ]; then
+      test -z "$CDEH_VERBOSE" || echo "$$ resource, because CDEH_ENVFILES ("$CDEH_ENVFILES") != NEW_CDEH_ENVFILES ("$NEW_CDEH_ENVFILES")"
+      if test "$PREVIOUS_DIR" != "$CDEH_CURRENT_DIR"; then
+        echo "Environment changed from \"$PREVIOUS_DIR\" to \"$CDEH_CURRENT_DIR\""
+      fi
+      EXITCODE=0
+    fi
+  fi
+fi
+exit $EXITCODE

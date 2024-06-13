@@ -8,31 +8,30 @@ Starting (running) the container
 
 To start the docker container, run:
 
-  docker-compose -f docker-arch.yaml up -d
+  docker-compose -f machine-learning.yaml up -d
 
 To see what it is being printed, run:
 
-  docker-compose -f docker-arch.yaml logs -f
-
-The sudo command is added by entrypoint.sh.
-All required packages are added by user-entrypoint.sh.
+  docker-compose -f machine-learning.yaml logs -f
 
 Running a shell in the container
 --------------------------------
 
 To run a shell inside the running container:
 
-  docker exec -it machine-learning su --login --whitelist-environment=DISPLAY,GITACHE_ROOT,AUTOGEN_CMAKE_ONLY,TensorflowCC_DIR,TENSORFLOW_PREFIX archuser
+  docker exec -it machine-learning /bin/bash
 
-This puts you in /home/archuser
-Note that only data added to / changes made to files in the directory ~/data are persistent!
+This puts you in /home/archuser/data
+Note that only data added to / changes made to files in this directory are persistent!
+
+If you want to change your environment, please edit ~/data/env.source, not ~/.bashrc.
 
 Destroying the container
 ------------------------
 
 To destroy all of the above again (execpt what you did in ~/data):
 
-  docker-compose -f docker-arch.yaml down
+  docker-compose -f machine-learning.yaml down
 
 ---
 
@@ -47,3 +46,49 @@ To remove a container that isn't running anymore:
 or simply
 
   docker rm machine-learning
+
+Notes on how the containers involved were created
+-------------------------------------------------
+
+Read README.userns-remap and decide if you want to use that.
+If so, do that first - because remapped docker containers
+are not accessible without userns-remap and vice versa.
+
+1) Install docker-buildx if you don't have it already:
+
+   sudo pacman -S docker-buildx
+
+2) Create a builder instance:
+
+   docker buildx create --name mlbuilder
+
+3) Set it as our active directory:
+
+   docker buildx use mlbuilder
+
+4) Build carlowood/arch-ml-bare:latest from the Dockerfile in the directory
+   arch-ml-bare and push it to the registry (hub.docker.com):
+
+   docker login -u carlowood
+   docker buildx build --tag carlowood/arch-ml-bare:latest --push arch-ml-bare
+
+   [ In order to "build" this yourself and just load it into your local docker, run:
+
+   docker buildx build --tag arch-ml-bare:latest --load arch-ml-bare
+
+   However, then you have to change the Dockerfile's that use carlowood/arch-ml-bare:latest
+   in their FROM, of course. ]
+
+6) To explore the image (and download/cache it locally):
+
+   docker run --rm -it carlowood/arch-ml-bare:latest /bin/bash
+
+7) Build arch-ml-env (locally):
+
+   docker buildx build --tag arch-ml-env --load arch-ml-env
+
+8) Optionally, run a shell in that image to explore it:
+
+   docker run --rm -it arch-ml-env /bin/bash 
+
+9) Now you can run `docker-compose -f machine-learning.yaml up -d` as shown at the top of this file.
