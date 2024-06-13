@@ -8,7 +8,9 @@ set -e
 sudo chown -R archuser:archuser /opt/cdeh/history/archuser
 
 # Fix ownership of home directory.
-sudo chown -R archuser:archuser /home/archuser
+sudo chown archuser:archuser /home/archuser
+# Everything but .Xauthority.
+sudo chown -R archuser:archuser /home/archuser/{.DIR_COLORS,.bash_logout,.bash_profile,.bashrc,.libcwdrc}
 
 # Execute command.
 tail -f /dev/null

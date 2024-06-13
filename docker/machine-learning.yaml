@@ -11,6 +11,6 @@ services:
     working_dir: /home/archuser/machine-learning      # Contains an env.source file that will be read.
     environment:
       - DISPLAY=$DISPLAY
-    #network_mode: host                               # Not allowed when using userns-remap.
+    #network_mode: host                               # Not allowed when using userns-remap; instead run `xhost +local:docker` on the host.
     entrypoint: ["/usr/local/sbin/entrypoint.sh"]
     command: ["tail", "-f", "/dev/null"]

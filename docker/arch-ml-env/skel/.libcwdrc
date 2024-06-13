@@ -1,0 +1,7 @@
+silent = on
+channels_default = off
+
+channels_on = warning,debug,notice
+
+gdb = /usr/bin/gdb -x $REPOBASE/.gdbinit $GDBCOMMANDFILE
+xterm = konsole --name "attach_gdb" --hide-menubar --nofork --workdir "$PWD" --geometry 165x24-0-0 -e %s

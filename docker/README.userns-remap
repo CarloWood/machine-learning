@@ -15,22 +15,21 @@ Write down the values that you get.
 
 Next, as root, open or create a file /etc/subuid and put in it:
 
-youruid:231072:65536
+youruid:200000:65536
 
-For example in my case I have: carlo:231072:65536
+For example in my case I have: carlo:200000:65536
 
 Also open or create a file /etc/subgid and put in it:
 
-yourgid:231072:65536
+yourgid:200000:65536
 
-For example in my case I have: carlo:231072:65536
+For example in my case I have: carlo:200000:65536
 because 'carlo' is also my group.
 
-[ The value 231072 is arbitrary but should be large, so it
+[ The value 200000 is arbitrary but should be large, so it
 maps to ids that are not in use on the host.
 The 65536 is the range that the docker container can use
-(231072 maps to 0, 231073 to 1 etc, all the way till
-231072 + 65535 = 296607 mapping to 65535).
+(200000 maps to 0, 200001 to 1 etc, all the way till 265535 mapping to 65535).
 If you have more than one range, make sure they do not
 overlap. See https://docs.docker.com/engine/security/userns-remap/
 for more information. ]
