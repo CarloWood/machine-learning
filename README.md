@@ -23,6 +23,7 @@ Once inside the docker contain (you are then in the directory
 ```
                    docker:~/machine-learning> git clone --recursive https://github.com/CarloWood/machine-learning.git
                    docker:~/machine-learning> cd machine-learning
+  docker:~/machine-learning/machine-learning> ./autogen.sh
   docker:~/machine-learning/machine-learning> cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_VERBOSE_MAKEFILE=ON -DEnableCairoWindowTests:BOOL=ON
   docker:~/machine-learning/machine-learning> cmake --build build --config Debug --parallel $(nproc --all)
   docker:~/machine-learning/machine-learning> cd build/cairowindow/tests
@@ -37,8 +38,48 @@ up the build environment yourself.
 
 On Archlinux you need to following packages:
 
-  git clang make pkgconfig cmake boost pango cairo eigen tensorflow-opt ttf-dejavu ccache
+```
+  sudo pacman -S git clang make pkgconfig cmake boost pango cairo eigen tensorflow-opt ttf-dejavu ccache
+```
 
 The last two are not absolutely required, but you really want to install them.
 
+If you have an NVidia GPU you could use `tensorflow-opt-cuda` instead (but cuda is VERY large
+and annoying to download / upgrade; I recommend against installing it if you do not already
+have it anyway).
 
+You also need packages that are on github, but not provided by arch (or typically any distribution).
+The project automatically clones, configures, compiles and installs those packages using `gitache`.
+For `gitache` to work you need to specify a directory that it can use for all of the above; this
+directory must be writable by you (and preferably empty when we start).
+
+For example, if you use `opt/gitache`, you will need:
+
+```
+  export GITACHE_ROOT=/opt/gitache
+  sudo mkdir $GITACHE_ROOT
+  sudo chown $(id -u):$(id -g) $GITACHE_ROOT
+```
+
+Of course, you can put also in your home directory if you think the partition of your
+home directory is large enough.
+
+Usually it is necessary to run `./autogen.sh` after cloning a repository for the first time.
+In order for that script to only set things up for cmake, and not automake, you want to
+set the following environment variable:
+
+```
+  export AUTOGEN_CMAKE_ONLY=1
+```
+or just set it while running autogen.sh, like so: `AUTOGEN_CMAKE_ONLY=1 ./autogen.sh`.
+
+You also need to set the following environment variables in order to find TensorflowCC:
+```
+  export TENSORFLOW_PREFIX=/usr
+  export TensorflowCC_DIR=/thefullpath/to/machine-learning/cmake
+```
+These work for Archlinux - if your tensorflow is installed elsewhere you might
+have to change them! For example, if your install already provides `TensorflowCCConfig.cmake` et al,
+then `TensorflowCC_DIR` should point there.
+
+After all of this is set up, you can do the same as listed above for docker (`git clone`, etc).
