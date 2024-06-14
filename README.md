@@ -20,12 +20,14 @@ for an explanation of how to construct the container and run it.
 Once inside the docker contain (you are then in the directory
 /home/archuser/machine-learning), run:
 
+```
                    docker:~/machine-learning> git clone --recursive https://github.com/CarloWood/machine-learning.git
                    docker:~/machine-learning> cd machine-learning
   docker:~/machine-learning/machine-learning> cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_VERBOSE_MAKEFILE=ON -DEnableCairoWindowTests:BOOL=ON
   docker:~/machine-learning/machine-learning> cmake --build build --config Debug --parallel $(nproc --all)
   docker:~/machine-learning/machine-learning> cd build/cairowindow/tests
   docker:~/machine-learning/machine-learning> ./quadratic_bezier
+```
 
 COMPILING ON A LINUX HOST
 =========================
