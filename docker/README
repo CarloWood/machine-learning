@@ -3,33 +3,73 @@ For example, on Arch Linux:
 
   systemctl status docker
 
+
+Preparation
+-----------
+
+Before you can start the docker container, you have to build it locally.
+You only have to do this once.
+
+Install docker-buildx if you don't have it already:
+
+   sudo pacman -S docker-buildx
+
+First configure the builder to use (this really has to be done only once,
+no need to repeat this even after a restart of docker).
+
+  docker buildx create --name mlbuilder
+  docker buildx use mlbuilder
+
+Another command that only needs to be done once (per reboot) is
+
+  xhost +local:
+
+Now we can build arch-ml-env:
+
+  docker buildx build --tag arch-ml-env --load arch-ml-env
+
+
 Starting (running) the container
 --------------------------------
 
-To start the docker container, run:
+To start the docker container, run (still inside the docker directory):
 
   docker-compose -f machine-learning.yaml up -d
 
-To see what it is being printed, run:
+To see what was being printed, you can run:
 
-  docker-compose -f machine-learning.yaml logs -f
+  docker-compose -f machine-learning.yaml logs
+
+The command this runs is `tail -f /dev/null`, so
+it won't stop. To terminate/kill the container,
+see "Destroying the container" below.
+
 
 Running a shell in the container
 --------------------------------
 
-To run a shell inside the running container:
+To run a shell inside the running machine-learning container:
 
   docker exec -it machine-learning /bin/bash
 
-This puts you in /home/archuser/data
-Note that only data added to / changes made to files in this directory are persistent!
+This puts you in /home/archuser/machine-learning
+Note that only data files inside *this* directory are persistent! It is a mount of docker/data.
 
-If you want to change your environment, please edit ~/data/env.source, not ~/.bashrc.
+Hence, if you want to change your environment, please edit ~/machine-learning/env.source, not ~/.bashrc.
+
+docker/data will be created when running machine-learning (as mount) and then given the
+ownership of the archuser inside the container. That means that it will be owned by 1000:1000
+on the host (if that is your uid/gid, then you're "lucky") or, if you use userns-remap, it
+will be owned by 201000:201000. I suppose you could make a new user on the host with those ids.
+For example,
+
+  sudo groupadd --gid 201000 archuser
+  sudo useradd --uid 201000 --gid 201000 --no-create-home --shell /usr/sbin/nologin archuser
 
 Destroying the container
 ------------------------
 
-To destroy all of the above again (execpt what you did in ~/data):
+To destroy all of the above again (except what you did in ~/machine-learning):
 
   docker-compose -f machine-learning.yaml down
 
@@ -47,26 +87,15 @@ or simply
 
   docker rm machine-learning
 
-Notes on how the containers involved were created
--------------------------------------------------
+
+Notes on how carlowood/arch-ml-bare:latest was created
+------------------------------------------------------
 
 Read README.userns-remap and decide if you want to use that.
 If so, do that first - because remapped docker containers
 are not accessible without userns-remap and vice versa.
 
-1) Install docker-buildx if you don't have it already:
-
-   sudo pacman -S docker-buildx
-
-2) Create a builder instance:
-
-   docker buildx create --name mlbuilder
-
-3) Set it as our active directory:
-
-   docker buildx use mlbuilder
-
-4) Build carlowood/arch-ml-bare:latest from the Dockerfile in the directory
+1) Build carlowood/arch-ml-bare:latest from the Dockerfile in the directory
    arch-ml-bare and push it to the registry (hub.docker.com):
 
    docker login -u carlowood
@@ -79,16 +108,7 @@ are not accessible without userns-remap and vice versa.
    However, then you have to change the Dockerfile's that use carlowood/arch-ml-bare:latest
    in their FROM, of course. ]
 
-6) To explore the image (and download/cache it locally):
+2) To explore the image (and download/cache it locally):
 
    docker run --rm -it carlowood/arch-ml-bare:latest /bin/bash
 
-7) Build arch-ml-env (locally):
-
-   docker buildx build --tag arch-ml-env --load arch-ml-env
-
-8) Optionally, run a shell in that image to explore it:
-
-   docker run --rm -it arch-ml-env /bin/bash 
-
-9) Now you can run `docker-compose -f machine-learning.yaml up -d` as shown at the top of this file.
