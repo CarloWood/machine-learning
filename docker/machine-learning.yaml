@@ -1,3 +1,5 @@
+# As this file is under version control; you are advised to make a copy
+# first before making any changes, and then use that file.
 services:
   machine-learning:
     image: arch-ml-env
@@ -5,12 +7,15 @@ services:
     volumes:
       - ./cdeh/history:/opt/cdeh/history              # Persistent bash history's. Make sure ./cdeh/history has mode 1777.
       - ./data:/home/archuser/machine-learning        # Persistent data; the repository will be /home/archuser/machine-learning/machine-learning.
-      - /tmp/.X11-unix:/tmp/.X11-unix                 # Required to connect to the X11 server.
-      #      - $HOME/.Xauthority:/home/archuser/.Xauthority  # Not used; instead run `xhost +local:` on the host.
-      #      - ./entrypoint.sh:/usr/local/sbin/entrypoint.sh # In case you want to run the entrypoint.sh script.
+      - /tmp/.X11-unix:/tmp/.X11-unix                 # Required to connect to the X11 server if docker runs on the machine that runs X.
+#      - $HOME/.Xauthority:/home/archuser/.Xauthority  # Not used (unless you are using `ssh -X` to a remote machine running docker and therefore
+                                                      #  are not using the X11 UNIX socket): instead run `xhost +local:` on the host.
+#      - ./entrypoint.sh:/usr/local/sbin/entrypoint.sh # In case you want to run the entrypoint.sh script.
     working_dir: /home/archuser/machine-learning      # Contains an env.source file that will be read.
     environment:
       - DISPLAY=$DISPLAY
-    #network_mode: host                               # Not allowed when using userns-remap.
+#    network_mode: host                                # Not allowed when using userns-remap; in that case docker *must* run on the
+                                                      # same machine that runs the X11 server and use the /tmp/.X11-unit volume (see above).
+                                                      # But you need this if $DISPLAY starts with an IP number (eg, 127.0.0.1:10.0).
     #    entrypoint: ["/usr/local/sbin/entrypoint.sh"]
     command: ["tail", "-f", "/dev/null"]

@@ -20,9 +20,13 @@ no need to repeat this even after a restart of docker).
   docker buildx create --name mlbuilder
   docker buildx use mlbuilder
 
-Another command that only needs to be done once (per reboot) is
+Another command that only needs to be done once (per reboot) is the
+following. If the value of $DISPLAY starts with a colon, you'll need:
 
   xhost +local:
+
+which allows anyone to connect to X by using the unix socket.
+The machine-learning container already takes care of bind mounting that.
 
 Now we can build arch-ml-env:
 

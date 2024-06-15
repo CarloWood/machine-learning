@@ -1,6 +1,6 @@
 FROM carlowood/arch-ml-bare:latest
 
-RUN pacman --noconfirm -Sy which xterm
+RUN pacman --noconfirm -Sy which
 
 COPY skel /etc/skel
 COPY cdeh /opt/cdeh
