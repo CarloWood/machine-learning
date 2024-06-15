@@ -53,7 +53,7 @@ The project automatically clones, configures, compiles and installs those packag
 For `gitache` to work you need to specify a directory that it can use for all of the above; this
 directory must be writable by you (and preferably empty when we start).
 
-For example, if you use `opt/gitache`, you will need:
+For example, if you use `/opt/gitache`, you will need:
 
 ```
   export GITACHE_ROOT=/opt/gitache
