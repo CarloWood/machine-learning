@@ -22,3 +22,7 @@
 	path = threadsafe
 	url = https://github.com/CarloWood/threadsafe.git
 	branch = master
+[submodule "events"]
+	path = events
+	url = https://github.com/CarloWood/events.git
+	branch = master

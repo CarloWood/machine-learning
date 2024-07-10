@@ -7,7 +7,7 @@ minima) then this point will be the only point where ∇_W L = 0.
 For example, let W be a 1-dimensional vector: W = [w], and
 let L be defined as:
 
-  L(w) = a + b w + c w²,
+  L(w) = a + b w + c w²,        c > 0
 
 then
 
