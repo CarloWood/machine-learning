@@ -28,7 +28,7 @@ endif ()
 # End of gitache configuration.
 
 # This project uses aicxx modules.
-include(cwm4/cmake/AICxxProject)
+include(cwm4/cmake/AICxxProject NO_POLICY_SCOPE)
 
 # This project uses boost filesystem.
 find_package(Boost REQUIRED COMPONENTS filesystem)
