@@ -82,4 +82,22 @@ These work for Archlinux - if your tensorflow is installed elsewhere you might
 have to change them! For example, if your install already provides `TensorflowCCConfig.cmake` et al,
 then `TensorflowCC_DIR` should point there.
 
+Finally add the following file as `~/.libcwdrc` in your home directory:
+```
+silent = on
+channels_default = off
+
+channels_on = warning,debug,notice
+
+gdb = /usr/bin/gdb -x $REPOBASE/.gdbinit $GDBCOMMANDFILE
+xterm = konsole --name "attach_gdb" --hide-menubar --nofork --workdir "$PWD" --geometry 165x24-0-0 -e %s
+```
+or, if you already have that file, make sure that the debug channels `warning`, `debug` and `notice` are on.
+Note how this uses `$REPOBASE`. Therefore, in order to make `attach_gdb()` work from within the
+program you should also add to your environment:
+```
+export REPOBASE=/full/path/to/machine-learning
+```
+Using the directory name of where you cloned this project. Namely, the repository contains a `.gdbinit` which then will be loaded.
+
 After all of this is set up, you can do the same as listed above for docker (`git clone`, etc).
