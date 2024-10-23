@@ -41,4 +41,5 @@ endif()
 include(AICxxSubmodules)
 
 add_subdirectory(gnuplot_i)
+add_subdirectory(math)
 add_subdirectory(src)
