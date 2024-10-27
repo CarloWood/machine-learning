@@ -86,7 +86,12 @@ class CubicPolynomial
     return result;
   }
 
-  int get_roots(std::array<double, 3>& roots_out) const;
+  int get_roots(std::array<double, 3>& roots_out, int& iterations) const;
+  int get_roots(std::array<double, 3>& roots_out) const
+  {
+    int iterations;
+    return get_roots(roots_out, iterations);
+  }
 
 #if CW_DEBUG
   // Return true if one was assigned from the other.
