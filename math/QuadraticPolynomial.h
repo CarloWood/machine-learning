@@ -5,6 +5,9 @@
 #include <array>
 #include <cmath>
 #include "debug.h"
+#if CW_DEBUG
+#include "utils/almost_equal.h"
+#endif
 #ifdef CWDEBUG
 #include "utils/has_print_on.h"
 #endif
@@ -52,6 +55,14 @@ class QuadraticPolynomial
     double const D = utils::square(coefficients_[1]) - 4.0 * coefficients_[2] * coefficients_[0];
     if (D < 0.0)
       return 0;
+
+    // If this fails then probably the coefficients are SO small that both utils::square(coefficients_[1])
+    // as well as coefficients_[2] * coefficients_[0] are zero. That is "fine" as long as the discriminant
+    // is not, in fact, less than zero.
+    ASSERT(D > 0.0 || std::abs(coefficients_[1]) >= 2.0 * std::sqrt(std::abs(coefficients_[2])) * std::sqrt(std::abs(coefficients_[0])) ||
+        utils::almost_equal(std::abs(coefficients_[1]),
+          2.0 * std::sqrt(std::abs(coefficients_[2])) * std::sqrt(std::abs(coefficients_[0])), 1e-14));
+
     // Use a sqrt with the same sign as coefficients_[1];
     double const signed_sqrt_D = std::copysign(std::sqrt(D), coefficients_[1]);
 
@@ -71,7 +82,7 @@ class QuadraticPolynomial
     roots_out[1] = -0.5 * (coefficients_[1] + signed_sqrt_D) / coefficients_[2];
 
     // The second one is larger in absolute value.
-    ASSERT(std::abs(roots_out[1]) > std::abs(roots_out[0]));
+    ASSERT(std::abs(roots_out[1]) > std::abs(roots_out[0]) || utils::almost_equal(std::abs(roots_out[0]), std::abs(roots_out[1]), 1e-14));
 
     return 2;
   }

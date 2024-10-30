@@ -1,6 +1,9 @@
 #include "sys.h"
 #include "CubicPolynomial.h"
 #include "AnalyzedCubic.h"
+#ifdef CWDEBUG
+#include "cwds/Restart.h"
+#endif
 
 namespace math {
 
@@ -95,102 +98,130 @@ int CubicPolynomial::get_roots(std::array<double, 3>& roots_out, int& iterations
     return qp.get_roots(*reinterpret_cast<std::array<double, 2>*>(&roots_out[0]));
   }
 
-#if 0
   // Step one: divide all coefficients by coefficients_[3]. This does not change the roots.
-  double c0 = coefficients_[0] / coefficients_[3];
-  double c1 = coefficients_[1] / coefficients_[3];
-  double c2 = coefficients_[2] / coefficients_[3];
+  double const c0 = coefficients_[0] / coefficients_[3];
+  double const c1 = coefficients_[1] / coefficients_[3];
+  double const c2 = coefficients_[2] / coefficients_[3];
+  double const d = utils::square(c2) - 3.0 * c1;
 
-  // Transform the cubic into
+  // The cubic is now monic:
   //
-  //   Q(u) = C0 + u (u^2 - 3)
+  //   p(x) = c0 + c1 x + c2 x² + x³
   //
-  double d = utils::square(c2) - 3.0 * c1;
-  double C0 = (27.0 * c0 - (utils::square(c2) + 3 * d) * c2) / (d * std::sqrt(d));
-#endif
+  // The first derivative is,
+  //
+  //   p'(x) = c1 + 2 c2 x + 3 x²
+  //
+  // Setting this to zero gives:
+  //                                  -c2 +/- sqrt(c2^2 - 3c1)   -c2 +/- sqrt(d)
+  //   0 = c1 + 2 c2 x + 3 x² --> x = ------------------------ = ---------------
+  //                                             3                     3
+  // Remember if we have local extrema or not.
+  bool const cubic_has_local_extrema = d > 0.0;
 
-  // Assuming the cubic has local extremes, we have the following eight possibilities:
-  //
-  //    m_.coefficient[3] > 0         |      m_.coefficient[3] < 0
-  //                                  |
-  // Case A:                          |   Case E:                           ⎫
-  //      .-.     /                   |      \     .-.                      ⎮
-  //     /   \   /                    |       \   /   \                     ⎮
-  //    /     `-´                     |        `-´     \                    ⎮
-  // --O-↑---↑-↑----------> x-axis    |   ------↑-↑---↑-O------> x-axis     ⎮   ← E is a minimum > 0
-  //     x   I E   x = I - 2(E - I)   |         E I   x   x = I + 2(I - E)  ⎮
-  //                                  |                                     ⎬ Iy > 0
-  // Case B:                          |   Case F:                           ⎮
-  //     .-.       /                  |     \       .-.                     ⎮
-  //    /   \     /                   |      \     /   \                    ⎮
-  // --O-↑---\---/-------> x-axis     |   ----\---/-----O------> x-axis     ⎮   ← E is a minimum < 0
-  //  /  x  I `E´  x = same as case A |        `E´ I   x \x = same as case E⎭
-  //                                  |
-  // Case C:                          |   Case G:                           ⎫
-  //     .-.       /                  |     \       .-.                     ⎮
-  // ---/-↑-\----↓O-------> x-axis    |   ---O-----/-↑-\-------> x-axis     ⎮   ← E is a maximum > 0
-  //   /  E I\   x x = same as case D |      x\   /I E  \ x = same as case H⎮
-  //  /       `-´                     |        `·´       \                  ⎮
-  //                                  |                                     ⎬ Iy < 0
-  // Case D:        /                 |   Case H:                           ⎮
-  // --------------O------> x-axis    |   --O------------------> x-axis     ⎮   ← E is a maximum < 0
-  //      .-.     /                   |      \     .-.                      ⎮
-  //     /   \   /                    |       \   /   \                     ⎮
-  //    /  ↑ ↑`-´↑                    |       ↑`·´↑ ↑  \                    ⎮
-  //       E I   x  x = I + 2(I - E)  |       x   I E     x = I - 2(E - I)  ⎭
-  //
-  // Where E is the extreme returned by acubic.get_extreme() and I is the inflection point.
-  // O is the root that we will try to find using Halley's method, using a starting point of x.
-  // The starting point is set on the slope that crosses the x-axis: passed the local extreme that is the closest to O.
-  // Note: in all cases the initial starting point x = 3Ix - 2Ex.
+  // Calculate the inflection point (where the second derivative is zero).
+  double const Ix = -c2 / 3.0;
+  // Magic (took me several days to find this).
+  double const M = 27.0 * c0 + (2.0 * d - 3.0 * c1) * c2;
+
+  double C0, C1;
+  double scale;
+
+  if (cubic_has_local_extrema)
+  {
+    // Transform the cubic into
+    //
+    //   Q(u) = C0 - 3u + u³
+    //
+    // After transforming the cubic we have the following four possibilities:
+    //
+    //          starting point
+    //                ↓
+    //  --------------+--O--> u-axis (for example)
+    //      .-.         /
+    //     /   \       /
+    //    /     \←----/----- Inflection point
+    //   /       \   /
+    //            `-´←------ The extreme with the largest absolute y value.
+    //       ↑  ↑  ↑  ↑
+    //      -1  0  1  2
+    //
+    // The starting point is set on the positive slope on the side of the local extreme that is the furthest away from the x-axis.
+    //
+    double const sqrt_d = std::sqrt(d);
+    C0 = M / (d * sqrt_d);
+    C1 = -3.0;
+
+    // The applied transform means that any root found must be scaled back by multiplying with
+    scale = sqrt_d / 3.0;
+    // and then adding Ix back.
+  }
+  else
+  {
+    // Transform the cubic into
+    //
+    //   Q(u) = C0 + 3u + u³
+    //
+    //          starting point
+    //                ↓
+    //                /
+    //  -------------O+-> u-axis (for example)
+    //              /
+    //             /
+    //            /
+    //         .⋅´←--------- Inflection point
+    //        /
+    //       /
+    //      /
+    //       ↑  ↑  ↑  ↑
+    //      -1  0  1  2
+
+    double const sqrt_md = std::sqrt(-d);
+    C0 = M / (-d * sqrt_md);
+    C1 = 3.0;
+
+    // The applied transform means that any root found must be scaled back by multiplying with
+    scale = sqrt_md / 3.0;
+    // and then adding Ix back.
+  }
 
   // Determine if the inflection point is above or below the x-axis.
-  bool inflection_point_y_larger_than_zero =
-    13.5 * coefficients_[0] + coefficients_[2] * (utils::square(coefficients_[2] / coefficients_[3]) - 4.5 * (coefficients_[1] / coefficients_[3])) > 0.0;
+  bool const inflection_point_y_larger_than_zero = C0 > 0.0;
 
-  AnalyzedCubic acubic;
-  // Calculate the minimum (-1) if the inflection point lays above the x-axis, and the maximum otherwise.
-  // This way acubic.get_extreme() (E above) becomes the extreme that is the closest to the x-axis.
-  acubic.initialize(*this, inflection_point_y_larger_than_zero ? -1 : 1);
+  // Special case for if zero is a root (i.e. Q(u) = u⋅(u² ± 3)).
+  double u = 0.0;
 
-  // Obtain the calculated inflection point.
-  double const inflection_point_x = acubic.inflection_point();
-
-  // Remember if we have local extrema or not.
-  bool const cubic_has_local_extrema = acubic.has_extrema();
-
-  // Special case for if zero is a root (i.e. p(x) = x * (b + c x + d x^2)).
-  double x = 0.0;
-
-  if (AI_LIKELY(coefficients_[0] != 0.0))       // Is 0 not a root of the cubic?
+  if (AI_LIKELY(C0 != 0.0))       // Is 0 not a root of the cubic?
   {
     // Avoid the local extrema and the inflection point because the derivative might be zero there too.
-    x = cubic_has_local_extrema ?
-      3 * inflection_point_x - 2 * acubic.get_extreme() :
-      inflection_point_x + (((coefficients_[3] > 0.0) == inflection_point_y_larger_than_zero) ? -1.0 : 1.0);
+    double cbrtC0 = std::cbrt(C0);
+    u = -cbrtC0 - 1.0 / cbrtC0;
+    Dout(dc::notice, "Initial guess: " << u);
 
-    int limit = 100;
-    double prev_x;
+    int limit = 10;
+    double prev_u;
     double step = std::numeric_limits<double>::infinity();
     double prev_step;
     do
     {
-      prev_x = x;
+      prev_u = u;
       prev_step = step;
-      double f_x = this->operator()(x);                                         // c₀ + c₁x + c₂x² + c₃x³
-      double three_c3_x = 3.0 * coefficients_[3] * x;                           // 3c₃x
-      double half_fpp_x = coefficients_[2] + three_c3_x;                        // ½ ∂²f/∂x² = ½(2c₂ + 6c₃x) = c₂ + 3c₃x
-      double fp_x = coefficients_[1] + (coefficients_[2] + half_fpp_x) * x;     // ∂f/∂x = c₁ + 2c₂x + 3c₃x² = c₁ + (2c₂ + 3c₃x)x
+      // Calculate Q(u) = C0 + C1 * u + u^3.
+      double Q_u = C0 + u * (utils::square(u) + C1);
+      // Calculate Q''(u) = 6 * u;
+      double half_Qpp_u = 3.0 * u;
+      // Calculate Q'(u) = C1 + 3 * u^2.
+      double Qp_u = half_Qpp_u * u + C1;
       // Apply Halley's method.
-      step = -f_x * fp_x / (utils::square(fp_x) - f_x * half_fpp_x);
-      x += step;                                                                // xₙ₊₁ = xₙ - f(x)f'(x) / (f'(x)² - ½f(x)f"(x))
-      Dout(dc::notice, "Halley: x = " << std::setprecision(15) << x << "; Δx = " << step);
+      step = -Q_u * Qp_u / (utils::square(Qp_u) - Q_u * half_Qpp_u);
+      u += step;                                                                // uₙ₊₁ = uₙ - Q(u)Q'(u) / (Q'(u)² - ½Q(u)Q"(u))
+      Dout(dc::notice, "Halley: u = " << std::setprecision(15) << u << "; Δu = " << step);
     }
-    while (step != 0.0 && std::abs(step) < std::abs(prev_step) && --limit);
+    while (step != 0.0 /*&& std::abs(step) < std::abs(prev_step)*/ && --limit);
     iterations = 100 - limit;
   }
 
-  roots_out[0] = x;
+  roots_out[0] = u * scale + Ix;
   int number_of_roots = 1;
 
   if (cubic_has_local_extrema)

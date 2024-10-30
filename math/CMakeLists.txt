@@ -23,6 +23,10 @@ target_sources(math_ObjLib
     "Polynomial.cxx"
     "CubicPolynomial.cxx"
     "AnalyzedCubic.cxx"
+    "Point.cxx"
+    "Direction.cxx"
+    "Line.cxx"
+    "LinePiece.cxx"
 
     ${HEADER_FILES}
 )
