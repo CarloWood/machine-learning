@@ -36,6 +36,14 @@ class Polynomial
   // Accessor.
   std::vector<double> const& coefficients() const { return coefficients_; }
 
+  int actual_degree() const
+  {
+    int degree = coefficients_.size() - 1;
+    while (degree > 0 && coefficients_[degree] == 0.0)
+      --degree;
+    return degree;
+  }
+
   double operator()(double w) const
   {
     double result = 0.0;
@@ -44,11 +52,90 @@ class Polynomial
     return result;
   };
 
+  Polynomial& operator-=(double rhs)
+  {
+    coefficients_[0] -= rhs;
+    return *this;
+  }
+
+  Polynomial& operator+=(double rhs)
+  {
+    coefficients_[0] += rhs;
+    return *this;
+  }
+
+  Polynomial operator-(double rhs) const
+  {
+    Polynomial result(*this);
+    result -= rhs;
+    return result;
+  }
+
+  Polynomial operator+(double rhs) const
+  {
+    Polynomial result(*this);
+    result += rhs;
+    return result;
+  }
+
+  Polynomial& operator-=(Polynomial const& rhs)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] -= rhs.coefficients_[i];
+    return *this;
+  }
+
+  Polynomial& operator+=(Polynomial const& rhs)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] += rhs.coefficients_[i];
+    return *this;
+  }
+
+  Polynomial operator+(Polynomial const& rhs) const
+  {
+    Polynomial result(*this);
+    result += rhs;
+    return result;
+  }
+
+  Polynomial operator-(Polynomial const& rhs) const
+  {
+    Polynomial result(*this);
+    result -= rhs;
+    return result;
+  }
+
+  Polynomial& operator*=(double factor)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] *= factor;
+    return *this;
+  }
+
+  friend Polynomial operator*(double factor, Polynomial const& rhs)
+  {
+    Polynomial result(rhs);
+    result *= factor;
+    return result;
+  }
+
+  Polynomial operator*=(Polynomial const& rhs);
+  friend Polynomial operator*(Polynomial const& lhs, Polynomial const& rhs);
+
   Polynomial derivative() const
   {
     Polynomial result(coefficients_.size() - 1 COMMA_CWDEBUG_ONLY(symbol_name_));
     for (int i = 1; i < coefficients_.size(); ++i)
       result[i - 1] = coefficients_[i] * i;
+    return result;
+  }
+
+  Polynomial integrate() const
+  {
+    Polynomial result(coefficients_.size() + 1 COMMA_CWDEBUG_ONLY(symbol_name_));
+    for (int i = 0; i < coefficients_.size(); ++i)
+      result[i + 1] = coefficients_[i] / (i + 1);
     return result;
   }
 

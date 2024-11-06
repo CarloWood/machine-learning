@@ -75,6 +75,48 @@ class CubicPolynomial
   double operator[](int i) const { ASSERT(0 <= i && i < coefficients_.size()); return coefficients_[i]; }
   double& operator[](int i) { ASSERT(0 <= i && i < coefficients_.size()); return coefficients_[i]; }
 
+  CubicPolynomial& operator-=(CubicPolynomial const& rhs)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] -= rhs.coefficients_[i];
+    return *this;
+  }
+
+  CubicPolynomial& operator+=(CubicPolynomial const& rhs)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] += rhs.coefficients_[i];
+    return *this;
+  }
+
+  CubicPolynomial operator+(CubicPolynomial const& rhs) const
+  {
+    CubicPolynomial result(*this);
+    result += rhs;
+    return result;
+  }
+
+  CubicPolynomial operator-(CubicPolynomial const& rhs) const
+  {
+    CubicPolynomial result(*this);
+    result -= rhs;
+    return result;
+  }
+
+  CubicPolynomial& operator*=(double factor)
+  {
+    for (int i = 0; i < coefficients_.size(); ++i)
+      coefficients_[i] *= factor;
+    return *this;
+  }
+
+  friend CubicPolynomial operator*(double factor, CubicPolynomial const& rhs)
+  {
+    CubicPolynomial result(rhs);
+    result *= factor;
+    return result;
+  }
+
   // Return the division of this Polynomial by the factor (x - r).
   QuadraticPolynomial long_division(double r, double& remainder) const
   {

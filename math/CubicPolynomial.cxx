@@ -193,12 +193,40 @@ int CubicPolynomial::get_roots(std::array<double, 3>& roots_out, int& iterations
 
   if (AI_LIKELY(C0 != 0.0))       // Is 0 not a root of the cubic?
   {
+    // If cubic_has_local_extrema and C0 is less than 0.90375741845959156233304814223072905692
+    // then the following fifth degree polynomial approximates S(C0) with a maximum absolute
+    // error of 0.00012624.
+    //
+    // S_approximation(C0) =
+    //   -0.0001262402246896549171879        +
+    //    0.0605169674714465246944928 * C0   +
+    //    1.3637323672416603782832849 * C0^2 +
+    //   -1.1689405475539427807915498 * C0^3 +
+    //    0.2645861875793937051035535 * C0^4 +
+    //    0.0295306624154090842689822 * C0^5
+    //
+    // or, this third degree polynomial results in a maximum absolute error of 0.001783.
+    //
+    //   -0.0017830414728385209713872        +
+    //    0.1217675925997833002784848 * C0   +
+    //    1.0356078024797888438012922 * C0^2 +
+    //   -0.6176223511426321157909154 * C0^3
+    //
+    // where S(C0) is defined as that (S(C0) - 1) sqrt(3) - S(C0) (cbrt(C0) + 1 / cbrt(C0)) is the exact root.
+
     // Avoid the local extrema and the inflection point because the derivative might be zero there too.
     double cbrtC0 = std::cbrt(C0);
     u = -cbrtC0 - 1.0 / cbrtC0;
     Dout(dc::notice, "Initial guess: " << u);
 
-    int limit = 10;
+    // Since the initial guess is already very accurate, it is more than sufficient to
+    // determine the resolution of a double around the value of the root (nextafter(u) - u).
+    // If we add less than 1.5 times that to u (but more than 0.5 times that) then u will
+    // be incremented with more than this resolution delta, which is when another iteration
+    // can still improve the result.
+    double const epsilon = 1.5 * (std::nextafter(u, std::numeric_limits<double>::infinity()) - u);
+    ASSERT(epsilon > 0.0);
+    int limit = 10000;
     double prev_u;
     double step = std::numeric_limits<double>::infinity();
     double prev_step;
@@ -215,10 +243,20 @@ int CubicPolynomial::get_roots(std::array<double, 3>& roots_out, int& iterations
       // Apply Halley's method.
       step = -Q_u * Qp_u / (utils::square(Qp_u) - Q_u * half_Qpp_u);
       u += step;                                                                // uₙ₊₁ = uₙ - Q(u)Q'(u) / (Q'(u)² - ½Q(u)Q"(u))
-      Dout(dc::notice, "Halley: u = " << std::setprecision(15) << u << "; Δu = " << step);
+#ifdef CWDEBUG
+      Dout(dc::notice, "Halley: u = " << std::setprecision(18) << u << " (" <<
+          std::nextafter(u, std::numeric_limits<double>::infinity()) << "); step = " << step << "; Δu = " << (u - prev_u));
+      // Make sure that comparing with epsilon doesn't do worse than detecting that u only changed by a single resolution delta.
+      double near = step > 0.0 ? std::nextafter(prev_u, std::numeric_limits<double>::infinity())
+                               : std::nextafter(prev_u, -std::numeric_limits<double>::infinity());
+      // If u only changed a single bit, then step should NOT be larger than epsilon!
+      if (u == near)
+        ASSERT(!(std::abs(step) > epsilon));
+#endif
     }
-    while (step != 0.0 /*&& std::abs(step) < std::abs(prev_step)*/ && --limit);
-    iterations = 100 - limit;
+    while (std::abs(step) > epsilon && --limit);
+    ASSERT(limit > 0);
+    iterations = 10000 - limit;
   }
 
   roots_out[0] = u * scale + Ix;

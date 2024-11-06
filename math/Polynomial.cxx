@@ -6,6 +6,34 @@
 
 namespace math {
 
+Polynomial Polynomial::operator*=(Polynomial const& rhs)
+{
+  int const ad_lhs = actual_degree();
+  int const ad_rhs = rhs.actual_degree();
+  size_t const number_of_coefficients = 1 + ad_lhs + ad_rhs;
+  std::vector<double> coefficients_lhs(std::max({number_of_coefficients, coefficients_.size(), rhs.coefficients().size()}), 0.0);
+  std::swap(coefficients_, coefficients_lhs);
+  for (int d_lhs = 0; d_lhs <= ad_lhs; ++d_lhs)
+    for (int d_rhs = 0; d_rhs <= ad_rhs; ++d_rhs)
+      coefficients_[d_lhs + d_rhs] += coefficients_lhs[d_lhs] * rhs[d_rhs];
+  return *this;
+}
+
+Polynomial operator*(Polynomial const& lhs, Polynomial const& rhs)
+{
+  int const ad_lhs = lhs.actual_degree();
+  int const ad_rhs = rhs.actual_degree();
+  size_t const number_of_coefficients = 1 + ad_lhs + ad_rhs;
+  Polynomial result(std::max({number_of_coefficients, lhs.coefficients().size(), rhs.coefficients().size()})
+      COMMA_CWDEBUG_ONLY(lhs.symbol_name_));
+
+  for (int d_lhs = 0; d_lhs <= ad_lhs; ++d_lhs)
+    for (int d_rhs = 0; d_rhs <= ad_rhs; ++d_rhs)
+      result[d_lhs + d_rhs] += lhs[d_lhs] * rhs[d_rhs];
+
+  return result;
+}
+
 int Polynomial::get_roots(std::array<double, 2>& roots_out) const
 {
   // This can be at most a parabola.
