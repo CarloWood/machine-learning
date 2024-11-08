@@ -2,6 +2,7 @@
 // in order to avoid code duplication in tests that need(ed)
 // to add test code to it.
 
+#ifndef HALLEY_ITERATIONS_TEST
   if (coefficients_[3] == 0.0)
   {
     // The cubic is actually a quadratic.
@@ -95,7 +96,8 @@
     scale = sqrt_md / 3.0;
     // and then adding Ix back.
   }
-  Dout(dc::notice, "C0 = " << C0 << ", C1 = " << C1);
+#endif  // no HALLEY_ITERATIONS_TEST
+  Dout(dc::notice, "C0 = " << std::setprecision(18) << C0 << ", C1 = " << C1);
 
   // Determine if the inflection point is above or below the x-axis.
   bool const inflection_point_y_larger_than_zero = C0 > 0.0;
@@ -107,8 +109,12 @@
   // Avoid the local extrema and the inflection point because the derivative might be zero there too.
   // We go for the root that is the furthest away from the inflection point.
 
+// the Halley_iterations test defines u itself.
+#ifndef HALLEY_ITERATIONS_TEST
   // Special case for if zero is a root (i.e. Q(u) = u⋅(u² ± 3)).
   double u = cubic_has_local_extrema ? root0 : 0.0;
+#endif  // no HALLEY_ITERATIONS_TEST
+
 #ifdef CWDEBUG
 #ifndef RANDOM_CUBICS_TEST
     double
@@ -117,7 +123,6 @@
 #endif
 
 #ifdef RANDOM_CUBICS_TEST
-
   if (plot_fitter)
   {
     // Plot the cubic.
@@ -128,14 +133,20 @@
   }
 #endif
 
+#ifndef HALLEY_ITERATIONS_TEST
   if (AI_LIKELY(C0 != 0.0))       // Is 0 not a root of the cubic?
   {
+#endif
     // We need the cube root of C0.
     double const cbrtC0 = std::cbrt(C0);
 
     // Define the value of the root in the case that C0 is large.
     double const root1 = -(cbrtC0 + 1.0 / cbrtC0);
 
+// the Halley_iterations test defines u itself.
+#ifdef HALLEY_ITERATIONS_TEST
+    int max_limit = 100;
+#else
     int max_limit = 10;
     if (std::abs(C0) <= 0.90375741846)
     {
@@ -158,23 +169,19 @@
       max_limit = 100;
       u = root1;
     }
+#endif
 
 #ifdef CWDEBUG
     initial_guess = u;
-    Dout(dc::notice, "Initial guess: " << initial_guess);
+    Dout(dc::notice, "Initial guess: " << std::setprecision(18) << initial_guess);
 #endif
     int limit = max_limit;
 
-    // Since the initial guess is already very accurate, it is more than sufficient to
-    // determine the resolution of a double around the value of the root (nextafter(u) - u).
-    // If we add less than 1.5 times that to u (but more than 0.5 times that) then u will
-    // be incremented with more than this resolution delta, which is when another iteration
-    // can still improve the result.
-    double const epsilon = 6.0 * (std::nextafter(u, std::numeric_limits<double>::infinity()) - u);
-    ASSERT(epsilon > 0.0);
-    double prev_u;
     double step = std::numeric_limits<double>::infinity();
+    double prev_u;
     double prev_step;
+    // If the relative error is down to this or better than only one more iteration is needed.
+    constexpr double max_relative_error_before_last_iteration = 3.5e-6;
     do
     {
       prev_u = u;
@@ -191,21 +198,61 @@
 #ifdef CWDEBUG
       Dout(dc::notice, "Halley: u = " << std::setprecision(18) << u << " (" <<
           std::nextafter(u, std::numeric_limits<double>::infinity()) << "); step = " << step << "; Δu = " << (u - prev_u));
-      // Make sure that comparing with epsilon doesn't do worse than detecting that u only changed by a single resolution delta.
-      double near = step > 0.0 ? std::nextafter(prev_u, std::numeric_limits<double>::infinity())
-                               : std::nextafter(prev_u, -std::numeric_limits<double>::infinity());
-      // If u only changed a single bit, then step should NOT be larger than epsilon!
-      // Unless the difference between the initial guess and the current value of u caused the resolution delta to have become larger.
-      if (u == near)
-        ASSERT(!(std::abs(step) > epsilon));
+      if (std::abs(prev_u - u) <= std::abs(max_relative_error_before_last_iteration * u))
+      {
+        // Detect what the CORRECT answer is.
+        double Qu = C0 + (C1 + u * u) * u;
+        double correct_root = u;
+        // The derivative of Q(u) around the root is positive: dQ/du = C1 + 3 u^2, where u^2 >= 3.
+        double direction = Qu < 0.0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
+        while (Qu != 0.0)
+        {
+          double next_root = std::nextafter(correct_root, direction);
+          double next_Qu = C0 + (C1 + next_root * next_root) * next_root;
+          double next_direction = next_Qu < 0.0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
+          if (next_direction != direction)
+          {
+            if (std::abs(next_Qu) < 0.99 * std::abs(Qu))
+              correct_root = next_root;
+            break;
+          }
+          Qu = next_Qu;
+          correct_root = next_root;
+        }
+        if (C0 != 0 && DEBUGCHANNELS::dc::notice.is_on())
+        {
+          if (!(u == correct_root ||
+              std::nextafter(u, std::numeric_limits<double>::infinity()) == correct_root ||
+              std::nextafter(u, -std::numeric_limits<double>::infinity()) == correct_root))
+          {
+            // Do one more Halley iteration.
+            double Q_u = C0 + u * (utils::square(u) + C1);
+            double half_Qpp_u = 3.0 * u;
+            double Qp_u = half_Qpp_u * u + C1;
+            u += -Q_u * Qp_u / (utils::square(Qp_u) - Q_u * half_Qpp_u);
+
+            // If now u is within one resolution step from the correct root then we DID stop too soon.
+            ASSERT(!(u == correct_root ||
+              std::nextafter(u, std::numeric_limits<double>::infinity()) == correct_root ||
+              std::nextafter(u, -std::numeric_limits<double>::infinity()) == correct_root));
+          }
+        }
+        else
+          u = correct_root;
+      }
 #endif
     }
-    while (--limit && std::abs(step) > epsilon);
+    while (--limit && std::abs(prev_u - u) > std::abs(max_relative_error_before_last_iteration * u));
     ASSERT(limit > 0);
     iterations = max_limit - limit;
-    ASSERT(max_limit != 10 || iterations <= 3);
 
-    Dout(dc::notice, "Root found: " << u << "; guess: " << initial_guess << " with relative error: " << ((initial_guess - u) / std::abs(u)));
+#ifndef HALLEY_ITERATIONS_TEST
+    ASSERT(max_limit != 10 || iterations <= 3);
+#endif
+
+    Dout(dc::notice, "Root found: " << std::setprecision(18) << u << "; iterations: " << iterations <<
+        "; guess: " << initial_guess << " with relative error: " << ((initial_guess - u) / std::abs(u)));
+#ifndef HALLEY_ITERATIONS_TEST
   }
 
 #ifdef RANDOM_CUBICS_TEST
@@ -228,3 +275,4 @@
   }
 
   return number_of_roots;
+#endif  // HALLEY_ITERATIONS_TEST
