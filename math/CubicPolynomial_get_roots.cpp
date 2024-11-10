@@ -147,28 +147,49 @@
 #ifdef HALLEY_ITERATIONS_TEST
     int max_limit = 100;
 #else
+    double const abs_C0 = std::abs(C0);
     int max_limit = 10;
-    if (std::abs(C0) <= 0.90375741846)
+    double SC0_approximation;
+    if (abs_C0 < 6.82)
     {
-      // If cubic_has_local_extrema and |C0| is less than 0.90375741845959156233304814223072905692
-      // then the following third degree polynomial approximates S(C0) such that the maximum
-      // relative error in the guessed root is 0.00059.
-      //
-      //    0.0736968737245806627769712 * |C0|   +
-      //    1.1816417812075004469387217 * |C0|^2 +
-      //   -0.7259036707909135067571286 * |C0|^3
-      //
-      // where S(C0) is defined as that `(1 - S(C0))⋅root0 + S(C0)⋅root1` is the exact root.
+      if (abs_C0 <= 0.90375741846)
+      {
+        // If cubic_has_local_extrema and |C0| is less than 0.90375741845959156233304814223072905692
+        // then the following third degree polynomial approximates S(C0) such that the maximum
+        // relative error in the guessed root is 0.00059.
+        //
+        //    0.0736968737245806627769713 * |C0|   +
+        //    1.1816417812075004469387217 * |C0|^2 +
+        //   -0.7259036707909135067571286 * |C0|^3
+        //
+        // where S(C0) is defined as that `(1 - S(C0))⋅root0 + S(C0)⋅root1` is the exact root.
 
-      double abs_C0 = std::abs(C0);
-      double SC0_approximation = (0.073696873724580669 + (1.1816417812075004 - 0.72590367079091356 * abs_C0) * abs_C0) * abs_C0;
+//        SC0_approximation = (0.073696873724580663 + (1.1816417812075004 - 0.72590367079091351 * abs_C0) * abs_C0) * abs_C0;
+
+        // But this is more than enough accuracy.
+        //    0.2307668111362540090428220 * |C0|   +
+        //    0.3991077472117580786261304 * |C0|^2
+        SC0_approximation = (0.230766811136254009 + 0.399107747211758079 * abs_C0) * abs_C0;
+
+      }
+      else
+      {
+        // If cubic_has_local_extrema and |C0| is larger than 0.90 but less than 6.82
+        // then the following third degree polynomial approximates S(C0) such that the maximum
+        // relative error in the guessed root is 0.0042.
+        //
+        //    0.1336242865900584967672058          +
+        //    0.5309536153375157312519206 * |C0|   +
+        //   -0.1103045467148938868482953 * |C0|^2 +
+        //    0.0074894907819310989348705 * |C0|^3
+
+        SC0_approximation =
+          0.133624286590058497 + (0.530953615337515731 + (-0.110304546714893887 + 0.0074894907819310989 * abs_C0) * abs_C0) * abs_C0;
+      }
       u = (1.0 - SC0_approximation) * root0 + SC0_approximation * root1;
     }
     else
-    {
-      max_limit = 100;
       u = root1;
-    }
 #endif
 
 #ifdef CWDEBUG
@@ -200,6 +221,8 @@
           std::nextafter(u, std::numeric_limits<double>::infinity()) << "); step = " << step << "; Δu = " << (u - prev_u));
       if (std::abs(prev_u - u) <= std::abs(max_relative_error_before_last_iteration * u))
       {
+        // This was the last iteration. Check that one more iteration would not have gotten a better answer.
+
         // Detect what the CORRECT answer is.
         double Qu = C0 + (C1 + u * u) * u;
         double correct_root = u;
@@ -219,7 +242,7 @@
           Qu = next_Qu;
           correct_root = next_root;
         }
-        if (C0 != 0 && DEBUGCHANNELS::dc::notice.is_on())
+        if (C0 != 0)
         {
           if (!(u == correct_root ||
               std::nextafter(u, std::numeric_limits<double>::infinity()) == correct_root ||
