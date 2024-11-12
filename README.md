@@ -17,7 +17,7 @@ directly in wsl doesn't work very well it seems).
 Read https://github.com/CarloWood/machine-learning/tree/master/docker#readme
 for an explanation of how to construct the container and run it.
 
-Once inside the docker contain (you are then in the directory
+Once inside the docker container (you are then in the directory
 /home/archuser/machine-learning), run:
 
 ```
