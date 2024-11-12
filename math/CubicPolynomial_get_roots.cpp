@@ -155,22 +155,19 @@
       if (abs_C0 <= 0.90375741846)
       {
         // If cubic_has_local_extrema and |C0| is less than 0.90375741845959156233304814223072905692
-        // then the following third degree polynomial approximates S(C0) such that the maximum
-        // relative error in the guessed root is 0.00059.
+        // then the following second degree polynomial approximates S(C0) such that the maximum
+        // relative error in the guessed root is 0.005.
         //
-        //    0.0736968737245806627769713 * |C0|   +
-        //    1.1816417812075004469387217 * |C0|^2 +
-        //   -0.7259036707909135067571286 * |C0|^3
-        //
-        // where S(C0) is defined as that `(1 - S(C0))⋅root0 + S(C0)⋅root1` is the exact root.
-
-//        SC0_approximation = (0.073696873724580663 + (1.1816417812075004 - 0.72590367079091351 * abs_C0) * abs_C0) * abs_C0;
-
-        // But this is more than enough accuracy.
         //    0.2307668111362540090428220 * |C0|   +
         //    0.3991077472117580786261304 * |C0|^2
+        //
+        // where S(C0) is defined as that `root0 + S(C0)⋅(root1 - root0)` is the exact root;
+        // aka S(C0) = (root - root0) / (root1 - root0).
+
         SC0_approximation = (0.230766811136254009 + 0.399107747211758079 * abs_C0) * abs_C0;
 
+        // This polynomial has been determined with `minus_three_case.cxx` with
+        // TILL_C0_half set to 1 (and polynomial_degree = 2).
       }
       else
       {
@@ -185,6 +182,9 @@
 
         SC0_approximation =
           0.133624286590058497 + (0.530953615337515731 + (-0.110304546714893887 + 0.0074894907819310989 * abs_C0) * abs_C0) * abs_C0;
+
+        // This polynomial has been determined with `minus_three_case.cxx` with
+        // TILL_C0_half set to 0 (and polynomial_degree = 3).
       }
       u = (1.0 - SC0_approximation) * root0 + SC0_approximation * root1;
     }
