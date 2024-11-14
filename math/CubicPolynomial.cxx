@@ -87,7 +87,7 @@ int CubicPolynomial::get_extrema(std::array<double, 2>& extrema_out, bool left_m
   return (one_fourth_D == 0.0) ? 1 : 2;
 }
 
-int CubicPolynomial::get_roots(std::array<double, 3>& roots_out, int& iterations) const
+int CubicPolynomial::get_roots(std::array<double, 3>& roots_out) const
 {
   DoutEntering(dc::notice, "CubicPolynomial::get_roots() for " << *this);
 

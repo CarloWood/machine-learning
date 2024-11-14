@@ -2,6 +2,10 @@
 // in order to avoid code duplication in tests that need(ed)
 // to add test code to it.
 
+#if defined(CWDEBUG) || defined(RANDOM_CUBICS_TEST)
+#define GETROOTS_ASSIGN_INITIAL_GUESS
+#endif
+
   static constexpr double sqrt3 = 1.7320508075688773;    // √3
 
 #if defined(CWDEBUG) && defined(RESTART)
@@ -127,11 +131,11 @@
   // Determine if the inflection point is above or below the x-axis.
   bool const inflection_point_y_larger_than_zero = C0 > 0.0;
 
-#ifdef CWDEBUG
+#ifdef GETROOTS_ASSIGN_INITIAL_GUESS
 #ifndef RANDOM_CUBICS_TEST
-    double
+  double
 #endif
-      initial_guess = u;
+    initial_guess = u;
 #endif
 
 #ifdef RANDOM_CUBICS_TEST
@@ -213,7 +217,7 @@
     }
 #endif
 
-#ifdef CWDEBUG
+#ifdef GETROOTS_ASSIGN_INITIAL_GUESS
     initial_guess = u;
     Dout(dc::notice, "Initial guess: " << std::setprecision(18) << initial_guess);
 #endif
@@ -300,8 +304,8 @@
 #endif
     }
     while (--limit && std::abs(prev_u - u) > std::abs(max_relative_error_before_last_iteration * u));
-#ifdef CWDEBUG
     ASSERT(limit > 0);
+#if defined(RANDOM_CUBICS_TEST) || defined(GETROOTS_ASSIGN_ITERATIONS)
     iterations = max_limit - limit;
 #ifndef HALLEY_ITERATIONS_TEST
     // Although very little, it happens that we get three iterations.
@@ -309,8 +313,15 @@
 #endif
 #endif
 
-    Dout(dc::notice, "Root found: " << std::setprecision(18) << u << "; iterations: " << iterations <<
-        "; guess: " << initial_guess << " with relative error: " << ((initial_guess - u) / std::abs(u)));
+    Dout(dc::notice|continued_cf, "Root found: " << std::setprecision(18) << u);
+#if defined(RANDOM_CUBICS_TEST) || defined(GETROOTS_ASSIGN_ITERATIONS)
+    Dout(dc::continued, "; iterations: " << iterations);
+#endif
+#ifdef GETROOTS_ASSIGN_INITIAL_GUESS
+    Dout(dc::finish, "; guess: " << initial_guess << " with relative error: " << ((initial_guess - u) / std::abs(u)));
+#else
+    Dout(dc::finish, "");
+#endif
 #ifndef HALLEY_ITERATIONS_TEST
   }
 
@@ -326,7 +337,7 @@
     // Find the other two roots, if any.
     [[maybe_unused]] double remainder;
     QuadraticPolynomial qp =
-#ifdef RANDOM_CUBICS_TEST
+#if defined(RANDOM_CUBICS_TEST) || defined(GETROOTS_ASSIGN_ITERATIONS)
       cubic.
 #endif
       long_division(roots_out[0], remainder);
@@ -335,3 +346,5 @@
 
   return number_of_roots;
 #endif  // HALLEY_ITERATIONS_TEST
+
+#undef GETROOTS_ASSIGN_INITIAL_GUESS
