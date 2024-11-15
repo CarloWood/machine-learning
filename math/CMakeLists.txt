@@ -27,6 +27,7 @@ target_sources(math_ObjLib
     "Direction.cxx"
     "Line.cxx"
     "LinePiece.cxx"
+    "bracket_zero.cxx"
 
     ${HEADER_FILES}
 )
