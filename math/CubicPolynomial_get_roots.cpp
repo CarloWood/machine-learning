@@ -2,6 +2,57 @@
 // in order to avoid code duplication in tests that need(ed)
 // to add test code to it.
 
+// We classify cubic into four class in order to determine which algorithm to use.
+//
+// Let P(x) be the monic third degree polynomial:
+//
+//   P(x) = c0 + c1 x + c2 x² + x³
+//
+// In that case x_max < x_min (the x coordinates of respectively
+// the local maximum and local minimum of the cubic).
+//
+// P'(x) = c1 + 2 c2 x + 3 x², set to zero to find
+//      x_max = (-c2 - sqrt(c2^2 - 3 c1)) / 3
+//      x_min = (-c2 + sqrt(c2^2 - 3 c1)) / 3
+//
+// Assume this cubic has three real roots, r₀, r₁ and r₂ where
+// |r₀| ⩽ |r₁| ⩽ |r₂|.
+//
+// Assume for now that r₂ > 0.
+//
+// Class A:
+//      x_max > 0 and 2 P(x_max) > 3 |P(0)| + P0        (r₀ < r₁ < r₂).
+//
+//   |r₀| ≪ |r₁| ⩽ |r₂|
+//
+//   0 <= |r0|/|r1| <= 0.171468
+//   0 <= |r0|/|r2| <= 0.105892
+//
+// Class B:
+//      x_max > 0 and 2 P(x_max) <= 3 |P(0)| + P0       (r₀ < r₁ < r₂).
+//
+//   |r₀| ≲ |r₁| ⩽ |r₂|
+//
+//   0.0980763 <= |r0|/|r1| <= 1
+//   0 <= |r0|/|r2| <= 1
+//
+// Class C:
+//      x_max < 0 and 2 P(x_max) <= 3 |P(0)| + P0       (r₁ < r₀ < r₂).
+//
+//   |r₀| ≲ |r₁| ⩽ |r₂|
+//
+//   0.171662 <= |r0|/|r1| <= 1
+//   0 <= |r0|/|r2| <= 1
+//
+// Class D:
+//      x_max < 0 and 2 P(x_max) > 3 |P(0)| + P0        (r₁ < r₀ < r₂).
+//
+//   |r₀| ≪ |r₁| ⩽ |r₂|
+//
+//   0 <= |r0|/|r1| <= 0.300282
+//   0 <= |r0|/|r2| <= 0.300282
+//
+
 #if defined(CWDEBUG) || defined(RANDOM_CUBICS_TEST)
 #define GETROOTS_ASSIGN_INITIAL_GUESS
 #endif
