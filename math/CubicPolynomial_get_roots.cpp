@@ -18,40 +18,22 @@
 // Assume this cubic has three real roots, r₀, r₁ and r₂ where
 // |r₀| ⩽ |r₁| ⩽ |r₂|.
 //
-// Assume for now that r₂ > 0.
 //
-// Class A:
-//      x_max > 0 and 2 P(x_max) > 3 |P(0)| + P0        (r₀ < r₁ < r₂).
+// If the smallest root is close to zero we can approximate it,
+// provided that
 //
-//   |r₀| ≪ |r₁| ⩽ |r₂|
+//   s = 4 c₀⋅c₂/c₁²;
 //
-//   0 <= |r0|/|r1| <= 0.171468
-//   0 <= |r0|/|r2| <= 0.105892
+// is less than 1 and r0⋅c₃/c₂ is less than -say- 0.1, with
 //
-// Class B:
-//      x_max > 0 and 2 P(x_max) <= 3 |P(0)| + P0       (r₀ < r₁ < r₂).
+//   r₀ = -½c₁/c₂ ⋅ (1 - sqrt(1 - s))
 //
-//   |r₀| ≲ |r₁| ⩽ |r₂|
+// Note that if c₂ is so small that s is smaller than -say- 0.1,
+// r₀ can better be approximated with
 //
-//   0.0980763 <= |r0|/|r1| <= 1
-//   0 <= |r0|/|r2| <= 1
+//   r₀ = -c₀/c₁ * (1 + (1/4 + (1/8 + (5/64 + 7/128 * s) * s) * s) * s);
 //
-// Class C:
-//      x_max < 0 and 2 P(x_max) <= 3 |P(0)| + P0       (r₁ < r₀ < r₂).
-//
-//   |r₀| ≲ |r₁| ⩽ |r₂|
-//
-//   0.171662 <= |r0|/|r1| <= 1
-//   0 <= |r0|/|r2| <= 1
-//
-// Class D:
-//      x_max < 0 and 2 P(x_max) > 3 |P(0)| + P0        (r₁ < r₀ < r₂).
-//
-//   |r₀| ≪ |r₁| ⩽ |r₂|
-//
-//   0 <= |r0|/|r1| <= 0.300282
-//   0 <= |r0|/|r2| <= 0.300282
-//
+// where we used the Taylor series of the above sqrt.
 
 #if defined(CWDEBUG) || defined(RANDOM_CUBICS_TEST)
 #define GETROOTS_ASSIGN_INITIAL_GUESS
@@ -393,6 +375,17 @@
 #endif
       long_division(roots_out[0], remainder);
     number_of_roots += qp.get_roots(*reinterpret_cast<std::array<double, 2>*>(&roots_out[1]));
+  }
+
+  // Finally apply Halley once more on all found roots.
+  for (int i = 0; i < number_of_roots; ++i)
+  {
+    Dout(dc::notice|continued_cf, "roots_out[" << i << "]: " << std::setprecision(18) << roots_out[i] << " --> ");
+    double Px = evaluate(roots_out[i]);
+    double dPx = derivative(roots_out[i]);
+    double half_ddPx = half_second_derivative(roots_out[i]);
+    roots_out[i] -= Px * dPx / (utils::square(dPx) - Px * half_ddPx);
+    Dout(dc::finish, std::setprecision(18) << roots_out[i]);
   }
 
   return number_of_roots;

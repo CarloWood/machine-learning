@@ -27,6 +27,8 @@ class CubicPolynomial
   CubicPolynomial() { }
   // Create a polynomial  a + b x + c x^2 + d x^3.
   CubicPolynomial(double a, double b, double c, double d) : coefficients_{{a, b, c, d}} { }
+  // Create a polynomial from an array.
+  CubicPolynomial(std::array<double, 4> const& coefficients) : coefficients_(coefficients) { }
 
   // Construct a cubic polynomial from a Polynomial.
   CubicPolynomial(Polynomial const& polynomial)
@@ -52,16 +54,27 @@ class CubicPolynomial
     return coefficients_[0] + (coefficients_[1] + (coefficients_[2] + coefficients_[3] * x) * x) * x;
   };
 
+  double evaluate(double x) const
+  {
+    return coefficients_[0] + (coefficients_[1] + (coefficients_[2] + coefficients_[3] * x) * x) * x;
+  };
+
   // Evaluate derivative.
   double derivative(double x) const
   {
     return coefficients_[1] + (2.0 * coefficients_[2] + 3.0 * coefficients_[3] * x) * x;
   }
 
+  // Evaluate half times the second derivative.
+  double half_second_derivative(double x) const
+  {
+    return coefficients_[2] + 3.0 * coefficients_[3] * x;
+  }
+
   // Evaluate second derivative.
   double second_derivative(double x) const
   {
-    return 2.0 * coefficients_[2] + 6.0 * coefficients_[3] * x;
+    return 2.0 * half_second_derivative(x);
   }
 
   double inflection_point() const
