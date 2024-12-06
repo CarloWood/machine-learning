@@ -28,5 +28,5 @@
 	branch = master
 [submodule "math"]
 	path = math
-	url = https://github.com/CarloWood/ai-math.git
+	url = https://github.com/CarloWood/math.git
 	branch = master
