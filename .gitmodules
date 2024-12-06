@@ -26,3 +26,7 @@
 	path = events
 	url = https://github.com/CarloWood/events.git
 	branch = master
+[submodule "math"]
+	path = math
+	url = https://github.com/CarloWood/ai-math.git
+	branch = master
