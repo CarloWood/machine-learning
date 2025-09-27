@@ -30,3 +30,6 @@
 	path = math
 	url = https://github.com/CarloWood/math.git
 	branch = master
+[submodule "memory"]
+	path = memory
+	url = github-carlo:CarloWood/memory
