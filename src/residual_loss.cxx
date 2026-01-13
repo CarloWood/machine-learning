@@ -164,7 +164,7 @@ void Line::draw(gnuplot_ctrl* h1, double x_min, double y_min, double x_max, doub
   float_type s = scale_factor();
   for (int sd = -1; sd <= 1; ++sd)
   {
-    intersections::HyperPlane<float_type, 2> line({W_(0, 0), W_(0, 1)}, W_(0, 2) + sd * sd1);
+    intersections::HyperPlane<float_type, 2> line({W_(0, 0), W_(0, 1)}, -W_(0, 2) - sd * sd1);
     intersections::HyperBlock<float_type, 2> rectangle({x_min, y_min}, {x_max, y_max});
 
     auto intersections = rectangle.intersection_points(line);
