@@ -40,5 +40,8 @@ endif()
 
 include(AICxxSubmodules)
 
+# We use utils/to_string.h
+add_subdirectory(enchantum)
+
 add_subdirectory(gnuplot_i)
-add_subdirectory(src)
+#add_subdirectory(src)

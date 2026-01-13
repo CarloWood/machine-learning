@@ -32,4 +32,8 @@
 	branch = master
 [submodule "memory"]
 	path = memory
-	url = github-carlo:CarloWood/memory
+	url = https://github.com/CarloWood/memory
+	branch = master
+[submodule "enchantum"]
+	path = enchantum
+	url = https://github.com/ZXShady/enchantum.git
